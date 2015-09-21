@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# we get primary version from `VERSION` file
+
+export $(cat .env)
+
+$GOBIN/relax
