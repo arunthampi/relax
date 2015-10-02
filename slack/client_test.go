@@ -336,6 +336,7 @@ var _ = Describe("Client", func() {
 
 				It("should return an error and send a response via Redis", func() {
 					var resp Response
+					var cmd Command
 
 					err = client.Start()
 					Expect(err).ToNot(BeNil())
@@ -350,7 +351,11 @@ var _ = Describe("Client", func() {
 
 					Expect(err).To(BeNil())
 					Expect(resp.Type).To(Equal("disable_bot"))
-					Expect(resp.Payload).To(Equal(""))
+					err = json.Unmarshal([]byte(resp.Payload), &cmd)
+					Expect(err).To(BeNil())
+
+					Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(cmd.Provider).To(Equal("slack"))
 				})
 			})
 

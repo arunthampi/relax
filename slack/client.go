@@ -216,7 +216,11 @@ func (c *Client) Start() error {
 		// Bot has been disabled by the user,
 		// so we need to mark it as disabled
 		if c.data.Error == "invalid_auth" {
-			err := c.sendResponse("disable_bot", "")
+			var msg Message
+			msg.User = User{}
+			msg.Channel = Channel{}
+
+			err := c.sendResponse("disable_bot", &msg, "", "")
 			if err != nil {
 				return err
 			}
@@ -235,10 +239,26 @@ func (c *Client) callSlack(method string, params url.Values, expectedStatusCode 
 	return c.callAPI(os.Getenv("SLACK_HOST"), method, params, expectedStatusCode)
 }
 
-func (c *Client) sendResponse(responseType string, payload string) error {
+func (c *Client) sendResponse(responseType string, msg *Message, text string, timestamp string) error {
+	command := &Command{
+		UserUid:     msg.User.Id,
+		ChannelUid:  msg.Channel.Id,
+		TeamUid:     c.TeamId,
+		Im:          msg.Channel.Im,
+		Text:        text,
+		RelaxBotUid: c.data.Self.Id,
+		Timestamp:   timestamp,
+		Provider:    "slack",
+	}
+
+	commandJson, err := json.Marshal(command)
+	if err != nil {
+		return nil
+	}
+
 	response := &Response{
 		Type:    responseType,
-		Payload: payload,
+		Payload: string(commandJson),
 	}
 
 	jsonResponse, err := json.Marshal(response)
@@ -246,7 +266,6 @@ func (c *Client) sendResponse(responseType string, payload string) error {
 	if err != nil {
 		return err
 	} else {
-
 		intCmd := c.redisClient.RPush(os.Getenv("REDIS_QUEUE_WEB"), string(jsonResponse))
 		if intCmd == nil || intCmd.Val() != 1 {
 			return fmt.Errorf("Unexpected error while pushing to REDIS_QUEUE_WEB")
@@ -287,21 +306,7 @@ func (c *Client) handleMessage(msg *Message) {
 				msg.User = c.data.Users[userId]
 				msg.Channel = c.data.Channels[channelId]
 
-				command := &Command{
-					UserUid:     msg.UserId(),
-					ChannelUid:  msg.Channel.Id,
-					TeamUid:     c.TeamId,
-					Im:          msg.Channel.Im,
-					Text:        msg.Reaction,
-					RelaxBotUid: c.data.Self.Id,
-					Timestamp:   embeddedItem.Timestamp,
-					Provider:    "slack",
-				}
-
-				commandJson, err := json.Marshal(command)
-				if err == nil {
-					c.sendResponse("reaction_added", string(commandJson))
-				}
+				c.sendResponse("reaction_added", msg, msg.Reaction, embeddedItem.Timestamp)
 			}
 		}
 
@@ -315,21 +320,7 @@ func (c *Client) handleMessage(msg *Message) {
 				msg.User = c.data.Users[userId]
 				msg.Channel = c.data.Channels[channelId]
 
-				command := &Command{
-					UserUid:     msg.UserId(),
-					ChannelUid:  msg.Channel.Id,
-					TeamUid:     c.TeamId,
-					Im:          msg.Channel.Im,
-					Text:        msg.Reaction,
-					RelaxBotUid: c.data.Self.Id,
-					Timestamp:   embeddedItem.Timestamp,
-					Provider:    "slack",
-				}
-
-				commandJson, err := json.Marshal(command)
-				if err == nil {
-					c.sendResponse("reaction_removed", string(commandJson))
-				}
+				c.sendResponse("reaction_removed", msg, msg.Reaction, embeddedItem.Timestamp)
 			}
 		}
 
@@ -343,45 +334,19 @@ func (c *Client) handleMessage(msg *Message) {
 			if shouldSendToBot(msg) == true {
 				msg.User = c.data.Users[userId]
 				msg.Channel = c.data.Channels[channelId]
-				command := &Command{
-					UserUid:     msg.UserId(),
-					ChannelUid:  msg.Channel.Id,
-					TeamUid:     c.TeamId,
-					Im:          msg.Channel.Im,
-					Text:        msg.Text,
-					RelaxBotUid: c.data.Self.Id,
-					Timestamp:   msg.DeletedTimestamp,
-					Provider:    "slack",
-				}
 
-				commandJson, err := json.Marshal(command)
-				if err == nil {
-					c.sendResponse("message_deleted", string(commandJson))
-				}
+				c.sendResponse("message_deleted", msg, msg.Text, msg.DeletedTimestamp)
 			}
 
 		case "message_changed":
 			if shouldSendToBot(msg) == true {
 				embeddedMessage := msg.EmbeddedMessage()
-				msg.User = c.data.Users[userId]
-				msg.Channel = c.data.Channels[channelId]
 
 				if embeddedMessage != nil {
-					command := &Command{
-						UserUid:     embeddedMessage.UserId(),
-						ChannelUid:  msg.Channel.Id,
-						TeamUid:     c.TeamId,
-						Im:          msg.Channel.Im,
-						Text:        embeddedMessage.Text,
-						RelaxBotUid: c.data.Self.Id,
-						Timestamp:   embeddedMessage.Timestamp,
-						Provider:    "slack",
-					}
-
-					commandJson, err := json.Marshal(command)
-					if err == nil {
-						c.sendResponse("message_edited", string(commandJson))
-					}
+					userId = embeddedMessage.UserId()
+					msg.User = c.data.Users[userId]
+					msg.Channel = c.data.Channels[channelId]
+					c.sendResponse("message_edited", msg, embeddedMessage.Text, embeddedMessage.Timestamp)
 				}
 			}
 		// simple message
@@ -393,21 +358,7 @@ func (c *Client) handleMessage(msg *Message) {
 
 				if msg.Channel.Im == true || IsMessageForBot(msg, c.data.Self.Id) {
 					if shouldSendToBot(msg) == true {
-						command := &Command{
-							UserUid:     msg.User.Id,
-							ChannelUid:  msg.Channel.Id,
-							TeamUid:     c.TeamId,
-							Im:          msg.Channel.Im,
-							Text:        msg.Text,
-							RelaxBotUid: c.data.Self.Id,
-							Timestamp:   msg.Timestamp,
-							Provider:    "slack",
-						}
-
-						commandJson, err := json.Marshal(command)
-						if err == nil {
-							c.sendResponse("message_new", string(commandJson))
-						}
+						c.sendResponse("message_new", msg, msg.Text, msg.Timestamp)
 					}
 				}
 			}
@@ -415,16 +366,7 @@ func (c *Client) handleMessage(msg *Message) {
 	case "team_join":
 		if err := json.Unmarshal(msg.RawUser, &msg.User); err == nil {
 			c.data.Users[msg.User.Id] = msg.User
-			command := &Command{
-				UserUid:     msg.User.Id,
-				TeamUid:     c.TeamId,
-				RelaxBotUid: c.data.Self.Id,
-				Provider:    "slack",
-			}
-			commandJson, err := json.Marshal(command)
-			if err == nil {
-				c.sendResponse("team_joined", string(commandJson))
-			}
+			c.sendResponse("team_joined", msg, "", "")
 		}
 	case "im_created":
 		if err := json.Unmarshal(msg.RawChannel, &msg.Channel); err == nil {
@@ -432,18 +374,7 @@ func (c *Client) handleMessage(msg *Message) {
 			c.data.Channels[msg.Channel.Id] = msg.Channel
 			msg.User = c.data.Users[msg.UserId()]
 
-			command := &Command{
-				UserUid:     msg.User.Id,
-				ChannelUid:  msg.Channel.Id,
-				TeamUid:     c.TeamId,
-				Im:          msg.Channel.Im,
-				RelaxBotUid: c.data.Self.Id,
-				Provider:    "slack",
-			}
-			commandJson, err := json.Marshal(command)
-			if err == nil {
-				c.sendResponse("im_created", string(commandJson))
-			}
+			c.sendResponse("im_created", msg, "", "")
 		}
 	}
 }
