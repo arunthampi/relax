@@ -77,3 +77,6 @@ config.json
 # certificates
 *.crt
 *.key
+
+# Redis
+*.rdb
