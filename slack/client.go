@@ -356,7 +356,7 @@ func (c *Client) handleMessage(msg *Message) {
 				msg.User = c.data.Users[userId]
 				msg.Channel = c.data.Channels[channelId]
 
-				if msg.Channel.Im == true || IsMessageForBot(msg, c.data.Self.Id) {
+				if msg.Channel.Im == true || isMessageForBot(msg, c.data.Self.Id) {
 					if shouldSendToBot(msg) == true {
 						c.sendResponse("message_new", msg, msg.Text, msg.Timestamp)
 					}

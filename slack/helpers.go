@@ -8,7 +8,7 @@ import (
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/gopkg.in/redis.v3"
 )
 
-func IsMessageForBot(msg *Message, botUserId string) bool {
+func isMessageForBot(msg *Message, botUserId string) bool {
 	re := regexp.MustCompile(fmt.Sprintf("<@(%s)>", botUserId))
 	isMessageForBot := false
 
