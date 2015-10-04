@@ -321,7 +321,6 @@ func (c *Client) handleMessage(msg *Message) {
 		channelId := msg.ChannelId()
 
 		switch msg.Subtype {
-		// message edited
 		case "message_deleted":
 			msg.User = c.data.Users[userId]
 			msg.Channel = c.data.Channels[channelId]
