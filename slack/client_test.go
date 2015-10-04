@@ -336,26 +336,26 @@ var _ = Describe("Client", func() {
 
 				It("should return an error and send a response via Redis", func() {
 					var resp Response
-					var cmd Command
+					var event Event
 
 					err = client.Start()
 					Expect(err).ToNot(BeNil())
 
 					redisClient := newRedisClient()
 
-					resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-					result := resultCmd.Val()
+					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
 					err := json.Unmarshal([]byte(result[1]), &resp)
 
 					Expect(err).To(BeNil())
 					Expect(resp.Type).To(Equal("disable_bot"))
-					err = json.Unmarshal([]byte(resp.Payload), &cmd)
+					err = json.Unmarshal([]byte(resp.Payload), &event)
 					Expect(err).To(BeNil())
 
-					Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-					Expect(cmd.Provider).To(Equal("slack"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
 				})
 			})
 
@@ -418,8 +418,8 @@ var _ = Describe("Client", func() {
 				})
 
 				It("should not send an event to Redis", func() {
-					resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-					result := resultCmd.Val()
+					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(0))
 				})
@@ -457,27 +457,28 @@ var _ = Describe("Client", func() {
 
 				It("should send an event to Redis", func() {
 					var resp Response
-					var cmd Command
+					var event Event
 
-					resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-					result := resultCmd.Val()
+					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
 					err := json.Unmarshal([]byte(result[1]), &resp)
 
 					Expect(err).To(BeNil())
 					Expect(resp.Type).To(Equal("message_new"))
-					err = json.Unmarshal([]byte(resp.Payload), &cmd)
+					err = json.Unmarshal([]byte(resp.Payload), &event)
 					Expect(err).To(BeNil())
 
-					Expect(cmd.ChannelUid).To(Equal("D2147483705"))
-					Expect(cmd.UserUid).To(Equal("U2147483697"))
-					Expect(cmd.Text).To(Equal("Hello world"))
-					Expect(cmd.Timestamp).To(Equal("1355517523.000005"))
-					Expect(cmd.Im).To(BeTrue())
-					Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-					Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-					Expect(cmd.Provider).To(Equal("slack"))
+					Expect(event.ChannelUid).To(Equal("D2147483705"))
+					Expect(event.UserUid).To(Equal("U2147483697"))
+					Expect(event.Text).To(Equal("Hello world"))
+					Expect(event.Timestamp).To(Equal("1355517523.000005"))
+					Expect(event.Im).To(BeTrue())
+					Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
+					Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
 				})
 			})
 
@@ -513,27 +514,28 @@ var _ = Describe("Client", func() {
 
 				It("should send an event to Redis", func() {
 					var resp Response
-					var cmd Command
+					var event Event
 
-					resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-					result := resultCmd.Val()
+					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
 					err := json.Unmarshal([]byte(result[1]), &resp)
 
 					Expect(err).To(BeNil())
 					Expect(resp.Type).To(Equal("message_new"))
-					err = json.Unmarshal([]byte(resp.Payload), &cmd)
+					err = json.Unmarshal([]byte(resp.Payload), &event)
 					Expect(err).To(BeNil())
 
-					Expect(cmd.ChannelUid).To(Equal("C2147483705"))
-					Expect(cmd.UserUid).To(Equal("U2147483697"))
-					Expect(cmd.Text).To(Equal("<@UBOTUID>: Hello world"))
-					Expect(cmd.Timestamp).To(Equal("1355517523.000005"))
-					Expect(cmd.Im).To(BeFalse())
-					Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-					Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-					Expect(cmd.Provider).To(Equal("slack"))
+					Expect(event.ChannelUid).To(Equal("C2147483705"))
+					Expect(event.UserUid).To(Equal("U2147483697"))
+					Expect(event.Text).To(Equal("<@UBOTUID>: Hello world"))
+					Expect(event.Timestamp).To(Equal("1355517523.000005"))
+					Expect(event.Im).To(BeFalse())
+					Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
+					Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
 				})
 			})
 
@@ -569,27 +571,28 @@ var _ = Describe("Client", func() {
 
 				It("should send an event to Redis", func() {
 					var resp Response
-					var cmd Command
+					var event Event
 
-					resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-					result := resultCmd.Val()
+					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
 					err := json.Unmarshal([]byte(result[1]), &resp)
 
 					Expect(err).To(BeNil())
 					Expect(resp.Type).To(Equal("message_new"))
-					err = json.Unmarshal([]byte(resp.Payload), &cmd)
+					err = json.Unmarshal([]byte(resp.Payload), &event)
 					Expect(err).To(BeNil())
 
-					Expect(cmd.ChannelUid).To(Equal("C2147483705"))
-					Expect(cmd.UserUid).To(Equal("U2147483697"))
-					Expect(cmd.Text).To(Equal("Hey <@UBOTUID> Hello world"))
-					Expect(cmd.Timestamp).To(Equal("1355517523.000005"))
-					Expect(cmd.Im).To(BeFalse())
-					Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-					Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-					Expect(cmd.Provider).To(Equal("slack"))
+					Expect(event.ChannelUid).To(Equal("C2147483705"))
+					Expect(event.UserUid).To(Equal("U2147483697"))
+					Expect(event.Text).To(Equal("Hey <@UBOTUID> Hello world"))
+					Expect(event.Timestamp).To(Equal("1355517523.000005"))
+					Expect(event.Im).To(BeFalse())
+					Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
+					Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
 				})
 			})
 
@@ -638,27 +641,28 @@ var _ = Describe("Client", func() {
 					// When clients recieve this message type, they should look for an existing message
 					// with the same message.ts in that channel. If they find one the existing message should be replaced with the new one.
 					var resp Response
-					var cmd Command
+					var event Event
 
-					resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-					result := resultCmd.Val()
+					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
 					err := json.Unmarshal([]byte(result[1]), &resp)
 
 					Expect(err).To(BeNil())
 					Expect(resp.Type).To(Equal("message_edited"))
-					err = json.Unmarshal([]byte(resp.Payload), &cmd)
+					err = json.Unmarshal([]byte(resp.Payload), &event)
 					Expect(err).To(BeNil())
 
-					Expect(cmd.ChannelUid).To(Equal("C2147483705"))
-					Expect(cmd.UserUid).To(Equal("U2147483697"))
-					Expect(cmd.Text).To(Equal("Hello, world!"))
-					Expect(cmd.Timestamp).To(Equal("1355517523.000005"))
-					Expect(cmd.Im).To(BeFalse())
-					Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-					Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-					Expect(cmd.Provider).To(Equal("slack"))
+					Expect(event.ChannelUid).To(Equal("C2147483705"))
+					Expect(event.UserUid).To(Equal("U2147483697"))
+					Expect(event.Text).To(Equal("Hello, world!"))
+					Expect(event.Timestamp).To(Equal("1355517523.000005"))
+					Expect(event.Im).To(BeFalse())
+					Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
+					Expect(event.EventTimestamp).To(Equal("1358878755.000001"))
 				})
 			})
 
@@ -699,27 +703,28 @@ var _ = Describe("Client", func() {
 					// When clients recieve this message type, they should look for an existing message
 					// with the same message.deleted_ts in that channel. If they find one they should delete this message
 					var resp Response
-					var cmd Command
+					var event Event
 
-					resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-					result := resultCmd.Val()
+					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
 					err := json.Unmarshal([]byte(result[1]), &resp)
 
 					Expect(err).To(BeNil())
 					Expect(resp.Type).To(Equal("message_deleted"))
-					err = json.Unmarshal([]byte(resp.Payload), &cmd)
+					err = json.Unmarshal([]byte(resp.Payload), &event)
 					Expect(err).To(BeNil())
 
-					Expect(cmd.ChannelUid).To(Equal("C2147483705"))
-					Expect(cmd.UserUid).To(Equal("U2147483697"))
-					Expect(cmd.Text).To(Equal(""))
-					Expect(cmd.Timestamp).To(Equal("1358878749.000002"))
-					Expect(cmd.Im).To(BeFalse())
-					Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-					Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-					Expect(cmd.Provider).To(Equal("slack"))
+					Expect(event.ChannelUid).To(Equal("C2147483705"))
+					Expect(event.UserUid).To(Equal("U2147483697"))
+					Expect(event.Text).To(Equal(""))
+					Expect(event.Timestamp).To(Equal("1358878749.000002"))
+					Expect(event.Im).To(BeFalse())
+					Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
+					Expect(event.EventTimestamp).To(Equal("1358878755.000001"))
 				})
 			})
 		})
@@ -759,27 +764,28 @@ var _ = Describe("Client", func() {
 
 			It("should send a 'reaction_added' event to Redis with the timestamp being the one set in item.ts", func() {
 				var resp Response
-				var cmd Command
+				var event Event
 
-				resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-				result := resultCmd.Val()
+				resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
 				err := json.Unmarshal([]byte(result[1]), &resp)
 
 				Expect(err).To(BeNil())
 				Expect(resp.Type).To(Equal("reaction_added"))
-				err = json.Unmarshal([]byte(resp.Payload), &cmd)
+				err = json.Unmarshal([]byte(resp.Payload), &event)
 				Expect(err).To(BeNil())
 
-				Expect(cmd.ChannelUid).To(Equal("C0304SBLA"))
-				Expect(cmd.UserUid).To(Equal("U024BE7LH"))
-				Expect(cmd.Text).To(Equal("+1"))
-				Expect(cmd.Timestamp).To(Equal("1435766912.000727"))
-				Expect(cmd.Im).To(BeFalse())
-				Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-				Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-				Expect(cmd.Provider).To(Equal("slack"))
+				Expect(event.ChannelUid).To(Equal("C0304SBLA"))
+				Expect(event.UserUid).To(Equal("U024BE7LH"))
+				Expect(event.Text).To(Equal("+1"))
+				Expect(event.Timestamp).To(Equal("1435766912.000727"))
+				Expect(event.Im).To(BeFalse())
+				Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+				Expect(event.Provider).To(Equal("slack"))
+				Expect(event.EventTimestamp).To(Equal("1360782804.083113"))
 			})
 		})
 
@@ -818,27 +824,28 @@ var _ = Describe("Client", func() {
 
 			It("should send a 'reaction_removed' event to Redis with the timestamp being the one set in item.ts", func() {
 				var resp Response
-				var cmd Command
+				var event Event
 
-				resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-				result := resultCmd.Val()
+				resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
 				err := json.Unmarshal([]byte(result[1]), &resp)
 
 				Expect(err).To(BeNil())
 				Expect(resp.Type).To(Equal("reaction_removed"))
-				err = json.Unmarshal([]byte(resp.Payload), &cmd)
+				err = json.Unmarshal([]byte(resp.Payload), &event)
 				Expect(err).To(BeNil())
 
-				Expect(cmd.ChannelUid).To(Equal("C0304SBLA"))
-				Expect(cmd.UserUid).To(Equal("U024BE7LH"))
-				Expect(cmd.Text).To(Equal("+1"))
-				Expect(cmd.Timestamp).To(Equal("1435766912.000727"))
-				Expect(cmd.Im).To(BeFalse())
-				Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-				Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-				Expect(cmd.Provider).To(Equal("slack"))
+				Expect(event.ChannelUid).To(Equal("C0304SBLA"))
+				Expect(event.UserUid).To(Equal("U024BE7LH"))
+				Expect(event.Text).To(Equal("+1"))
+				Expect(event.Timestamp).To(Equal("1435766912.000727"))
+				Expect(event.Im).To(BeFalse())
+				Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+				Expect(event.Provider).To(Equal("slack"))
+				Expect(event.EventTimestamp).To(Equal("1360782804.083113"))
 			})
 		})
 
@@ -890,27 +897,27 @@ var _ = Describe("Client", func() {
 
 			It("should send a 'users_bulk_create' event to Redis with the team ID and the user", func() {
 				var resp Response
-				var cmd Command
+				var event Event
 
-				resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-				result := resultCmd.Val()
+				resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
 				err := json.Unmarshal([]byte(result[1]), &resp)
 
 				Expect(err).To(BeNil())
 				Expect(resp.Type).To(Equal("team_joined"))
-				err = json.Unmarshal([]byte(resp.Payload), &cmd)
+				err = json.Unmarshal([]byte(resp.Payload), &event)
 				Expect(err).To(BeNil())
 
-				Expect(cmd.ChannelUid).To(Equal(""))
-				Expect(cmd.UserUid).To(Equal("U023BECGF"))
-				Expect(cmd.Text).To(Equal(""))
-				Expect(cmd.Timestamp).To(Equal(""))
-				Expect(cmd.Im).To(BeFalse())
-				Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-				Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-				Expect(cmd.Provider).To(Equal("slack"))
+				Expect(event.ChannelUid).To(Equal(""))
+				Expect(event.UserUid).To(Equal("U023BECGF"))
+				Expect(event.Text).To(Equal(""))
+				Expect(event.Timestamp).To(Equal(""))
+				Expect(event.Im).To(BeFalse())
+				Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+				Expect(event.Provider).To(Equal("slack"))
 
 				Expect(client.data.Users["U023BECGF"].Id).To(Equal("U023BECGF"))
 				Expect(client.data.Users["U023BECGF"].Name).To(Equal("bobby"))
@@ -952,27 +959,27 @@ var _ = Describe("Client", func() {
 
 			It("should send a 'im_created' event to Redis with the team ID and the user", func() {
 				var resp Response
-				var cmd Command
+				var event Event
 
-				resultCmd := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
-				result := resultCmd.Val()
+				resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
 				err := json.Unmarshal([]byte(result[1]), &resp)
 
 				Expect(err).To(BeNil())
 				Expect(resp.Type).To(Equal("im_created"))
-				err = json.Unmarshal([]byte(resp.Payload), &cmd)
+				err = json.Unmarshal([]byte(resp.Payload), &event)
 				Expect(err).To(BeNil())
 
-				Expect(cmd.ChannelUid).To(Equal("D024BE91L"))
-				Expect(cmd.UserUid).To(Equal("U024BE7LH"))
-				Expect(cmd.Text).To(Equal(""))
-				Expect(cmd.Timestamp).To(Equal(""))
-				Expect(cmd.Im).To(BeTrue())
-				Expect(cmd.RelaxBotUid).To(Equal("UBOTUID"))
-				Expect(cmd.TeamUid).To(Equal("TDEADBEEF"))
-				Expect(cmd.Provider).To(Equal("slack"))
+				Expect(event.ChannelUid).To(Equal("D024BE91L"))
+				Expect(event.UserUid).To(Equal("U024BE7LH"))
+				Expect(event.Text).To(Equal(""))
+				Expect(event.Timestamp).To(Equal(""))
+				Expect(event.Im).To(BeTrue())
+				Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+				Expect(event.Provider).To(Equal("slack"))
 
 				Expect(client.data.Channels["D024BE91L"].Id).To(Equal("D024BE91L"))
 			})

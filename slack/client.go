@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/gorilla/websocket"
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/gopkg.in/redis.v3"
@@ -42,6 +43,11 @@ type Message struct {
 	DeletedTimestamp string `json:"deleted_ts"`
 	Reaction         string `json:"reaction"`
 	Hidden           bool   `json:"hidden"`
+	// For some events, such as message_changed, message_deleted, etc.
+	// the Timestamp field contains the timestamp of the original message
+	// so to make sure only one instance of the event is sent to REDIS_QUEUE_WEB
+	// only once, and will be used by the `shouldSendToBot` function
+	EventTimestamp string `json:"event_ts"`
 
 	User    User
 	Channel Channel
@@ -140,15 +146,16 @@ type User struct {
 	IsRestricted        bool   `json:"is_restricted"`
 }
 
-type Command struct {
-	UserUid     string `json:"user_uid"`
-	ChannelUid  string `json:"channel_uid"`
-	TeamUid     string `json:"team_uid"`
-	Im          bool   `json:"im"`
-	Text        string `json:"text"`
-	RelaxBotUid string `json:"relax_bot_uid"`
-	Timestamp   string `json:"timestamp"`
-	Provider    string `json:"provider"`
+type Event struct {
+	UserUid        string `json:"user_uid"`
+	ChannelUid     string `json:"channel_uid"`
+	TeamUid        string `json:"team_uid"`
+	Im             bool   `json:"im"`
+	Text           string `json:"text"`
+	RelaxBotUid    string `json:"relax_bot_uid"`
+	Timestamp      string `json:"timestamp"`
+	Provider       string `json:"provider"`
+	EventTimestamp string `json:"event_timestamp"`
 }
 
 func NewClient(teamId string, initJSON string) (*Client, error) {
@@ -220,7 +227,7 @@ func (c *Client) Start() error {
 			msg.User = User{}
 			msg.Channel = Channel{}
 
-			err := c.sendResponse("disable_bot", &msg, "", "")
+			err := c.sendEvent("disable_bot", &msg, "", "", "")
 			if err != nil {
 				return err
 			}
@@ -239,26 +246,37 @@ func (c *Client) callSlack(method string, params url.Values, expectedStatusCode 
 	return c.callAPI(os.Getenv("SLACK_HOST"), method, params, expectedStatusCode)
 }
 
-func (c *Client) sendResponse(responseType string, msg *Message, text string, timestamp string) error {
-	command := &Command{
-		UserUid:     msg.User.Id,
-		ChannelUid:  msg.Channel.Id,
-		TeamUid:     c.TeamId,
-		Im:          msg.Channel.Im,
-		Text:        text,
-		RelaxBotUid: c.data.Self.Id,
-		Timestamp:   timestamp,
-		Provider:    "slack",
+func (c *Client) sendEvent(responseType string, msg *Message, text string, timestamp string, eventTimestamp string) error {
+	if responseType == "message_new" && !(msg.Channel.Im == true || isMessageForBot(msg, c.data.Self.Id)) {
+		return nil
 	}
 
-	commandJson, err := json.Marshal(command)
+	// If the eventTimestamp blank, then set a timestamp to the currentTime (this typically means)
+	// that it is the responsibility of the client to make sure that events are handled idempotently
+	if eventTimestamp == "" {
+		eventTimestamp = fmt.Sprintf("%d", time.Now().Nanosecond())
+	}
+
+	event := &Event{
+		UserUid:        msg.User.Id,
+		ChannelUid:     msg.Channel.Id,
+		TeamUid:        c.TeamId,
+		Im:             msg.Channel.Im,
+		Text:           text,
+		RelaxBotUid:    c.data.Self.Id,
+		Timestamp:      timestamp,
+		EventTimestamp: eventTimestamp,
+		Provider:       "slack",
+	}
+
+	eventJson, err := json.Marshal(event)
 	if err != nil {
 		return nil
 	}
 
 	response := &Response{
 		Type:    responseType,
-		Payload: string(commandJson),
+		Payload: string(eventJson),
 	}
 
 	jsonResponse, err := json.Marshal(response)
@@ -266,9 +284,11 @@ func (c *Client) sendResponse(responseType string, msg *Message, text string, ti
 	if err != nil {
 		return err
 	} else {
-		intCmd := c.redisClient.RPush(os.Getenv("REDIS_QUEUE_WEB"), string(jsonResponse))
-		if intCmd == nil || intCmd.Val() != 1 {
-			return fmt.Errorf("Unexpected error while pushing to REDIS_QUEUE_WEB")
+		if shouldSendEvent(event) == true {
+			intCmd := c.redisClient.RPush(os.Getenv("REDIS_QUEUE_WEB"), string(jsonResponse))
+			if intCmd == nil || intCmd.Val() != 1 {
+				return fmt.Errorf("Unexpected error while pushing to REDIS_QUEUE_WEB")
+			}
 		}
 	}
 
@@ -296,34 +316,6 @@ func (c *Client) startReadLoop() {
 
 func (c *Client) handleMessage(msg *Message) {
 	switch msg.Type {
-	case "reaction_added":
-		if shouldSendToBot(msg) == true {
-			embeddedItem := msg.EmbeddedItem()
-			if embeddedItem != nil {
-				channelId := embeddedItem.ChannelId()
-				userId := msg.UserId()
-
-				msg.User = c.data.Users[userId]
-				msg.Channel = c.data.Channels[channelId]
-
-				c.sendResponse("reaction_added", msg, msg.Reaction, embeddedItem.Timestamp)
-			}
-		}
-
-	case "reaction_removed":
-		if shouldSendToBot(msg) == true {
-			embeddedItem := msg.EmbeddedItem()
-			if embeddedItem != nil {
-				channelId := embeddedItem.ChannelId()
-				userId := msg.UserId()
-
-				msg.User = c.data.Users[userId]
-				msg.Channel = c.data.Channels[channelId]
-
-				c.sendResponse("reaction_removed", msg, msg.Reaction, embeddedItem.Timestamp)
-			}
-		}
-
 	case "message":
 		userId := msg.UserId()
 		channelId := msg.ChannelId()
@@ -331,50 +323,67 @@ func (c *Client) handleMessage(msg *Message) {
 		switch msg.Subtype {
 		// message edited
 		case "message_deleted":
-			if shouldSendToBot(msg) == true {
-				msg.User = c.data.Users[userId]
-				msg.Channel = c.data.Channels[channelId]
+			msg.User = c.data.Users[userId]
+			msg.Channel = c.data.Channels[channelId]
 
-				c.sendResponse("message_deleted", msg, msg.Text, msg.DeletedTimestamp)
-			}
+			c.sendEvent("message_deleted", msg, msg.Text, msg.DeletedTimestamp, msg.Timestamp)
 
 		case "message_changed":
-			if shouldSendToBot(msg) == true {
-				embeddedMessage := msg.EmbeddedMessage()
+			embeddedMessage := msg.EmbeddedMessage()
 
-				if embeddedMessage != nil {
-					userId = embeddedMessage.UserId()
-					msg.User = c.data.Users[userId]
-					msg.Channel = c.data.Channels[channelId]
-					c.sendResponse("message_edited", msg, embeddedMessage.Text, embeddedMessage.Timestamp)
-				}
+			if embeddedMessage != nil {
+				userId = embeddedMessage.UserId()
+				msg.User = c.data.Users[userId]
+				msg.Channel = c.data.Channels[channelId]
+				c.sendEvent("message_edited", msg, embeddedMessage.Text, embeddedMessage.Timestamp, msg.Timestamp)
 			}
+
 		// simple message
 		case "":
 			// Ignore Messages sent from the bot itself
-			if userId != c.data.Self.Id {
-				msg.User = c.data.Users[userId]
-				msg.Channel = c.data.Channels[channelId]
+			msg.User = c.data.Users[userId]
+			msg.Channel = c.data.Channels[channelId]
 
-				if msg.Channel.Im == true || isMessageForBot(msg, c.data.Self.Id) {
-					if shouldSendToBot(msg) == true {
-						c.sendResponse("message_new", msg, msg.Text, msg.Timestamp)
-					}
-				}
-			}
+			c.sendEvent("message_new", msg, msg.Text, msg.Timestamp, msg.Timestamp)
 		}
+
+	case "reaction_added":
+		embeddedItem := msg.EmbeddedItem()
+		if embeddedItem != nil {
+			channelId := embeddedItem.ChannelId()
+			userId := msg.UserId()
+
+			msg.User = c.data.Users[userId]
+			msg.Channel = c.data.Channels[channelId]
+
+			c.sendEvent("reaction_added", msg, msg.Reaction, embeddedItem.Timestamp, msg.EventTimestamp)
+		}
+
+	case "reaction_removed":
+		embeddedItem := msg.EmbeddedItem()
+		if embeddedItem != nil {
+			channelId := embeddedItem.ChannelId()
+			userId := msg.UserId()
+
+			msg.User = c.data.Users[userId]
+			msg.Channel = c.data.Channels[channelId]
+
+			c.sendEvent("reaction_removed", msg, msg.Reaction, embeddedItem.Timestamp, msg.EventTimestamp)
+		}
+
 	case "team_join":
 		if err := json.Unmarshal(msg.RawUser, &msg.User); err == nil {
 			c.data.Users[msg.User.Id] = msg.User
-			c.sendResponse("team_joined", msg, "", "")
+			c.sendEvent("team_joined", msg, "", "", "")
 		}
+
 	case "im_created":
 		if err := json.Unmarshal(msg.RawChannel, &msg.Channel); err == nil {
 			msg.Channel.Im = true
 			c.data.Channels[msg.Channel.Id] = msg.Channel
 			msg.User = c.data.Users[msg.UserId()]
 
-			c.sendResponse("im_created", msg, "", "")
+			c.sendEvent("im_created", msg, "", "", "")
 		}
 	}
 }

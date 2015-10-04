@@ -20,8 +20,8 @@ func isMessageForBot(msg *Message, botUserId string) bool {
 	return isMessageForBot
 }
 
-func shouldSendToBot(msg *Message) bool {
-	key := fmt.Sprintf("bot_message:%s:%s", msg.Channel.Id, msg.Timestamp)
+func shouldSendEvent(event *Event) bool {
+	key := fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp)
 
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_HOST"),
