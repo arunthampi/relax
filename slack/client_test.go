@@ -13,7 +13,7 @@ import (
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/gorilla/websocket"
 	. "github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/onsi/ginkgo"
 	. "github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/onsi/gomega"
-	"gopkg.in/redis.v3"
+	"github.com/zerobotlabs/relax/Godeps/_workspace/src/gopkg.in/redis.v3"
 )
 
 func Test(t *testing.T) {
@@ -83,20 +83,22 @@ var _ = Describe("Client", func() {
 	Describe("NewClient", func() {
 		Context("with valid params", func() {
 			It("should initialize a new client with no error", func() {
-				client, err := NewClient("TDEADBEEF", "{\"bot_token\":\"xoxo_deadbeef\"}")
+				client, err := NewClient("{\"team_id\": \"TDEADBEEF\", \"token\":\"xoxo_deadbeef\"}")
 
 				Expect(err).To(BeNil())
 				Expect(client.TeamId).To(Equal("TDEADBEEF"))
-				Expect(client.SlackToken).To(Equal("xoxo_deadbeef"))
+				Expect(client.Token).To(Equal("xoxo_deadbeef"))
 			})
 		})
 
 		Context("without valid params", func() {
 			It("should initialize a new client with an error", func() {
-				client, err := NewClient("TDEADBEEF", "")
+				client, err := NewClient("")
 
 				Expect(err).ToNot(BeNil())
-				Expect(client).To(BeNil())
+				Expect(client.Token).To(Equal(""))
+				Expect(client.TeamId).To(Equal(""))
+				Expect(client.Provider).To(Equal(""))
 			})
 		})
 	})
@@ -113,7 +115,7 @@ var _ = Describe("Client", func() {
 				existingSlackHost = os.Getenv("SLACK_HOST")
 				os.Setenv("SLACK_HOST", server.URL)
 
-				client, err = NewClient("TDEADBEEF", "{\"bot_token\":\"xoxo_deadbeef\"}")
+				client, err = NewClient("{\"team_id\":\"TDEADBEEF\",\"bot_token\":\"xoxo_deadbeef\"}")
 				Expect(err).To(BeNil())
 			})
 
@@ -258,7 +260,9 @@ var _ = Describe("Client", func() {
 `, 200)
 				existingSlackHost = os.Getenv("SLACK_HOST")
 				os.Setenv("SLACK_HOST", server.URL)
-				client, err = NewClient("TDEADBEEF", "{\"bot_token\":\"xoxo_deadbeef\"}")
+
+				client, err = NewClient("{\"team_id\":\"TDEADBEEF\",\"bot_token\":\"xoxo_deadbeef\"}")
+
 				Expect(err).To(BeNil())
 			})
 
@@ -270,7 +274,6 @@ var _ = Describe("Client", func() {
 				err := client.Login()
 
 				Expect(err).To(BeNil())
-				Expect(client.data).ToNot(BeNil())
 
 				Expect(client.data.Ok).To(BeTrue())
 				Expect(client.data.Url).To(Equal("wss://ms9.slack-msgs.com/websocket/7I5yBpcvk"))
@@ -319,7 +322,7 @@ var _ = Describe("Client", func() {
 		var err error
 
 		BeforeEach(func() {
-			client, err = NewClient("TDEADBEEF", "{\"bot_token\":\"xoxo_deadbeef\"}")
+			client, err = NewClient("{\"team_id\":\"TDEADBEEF\",\"bot_token\":\"xoxo_deadbeef\"}")
 			Expect(err).To(BeNil())
 		})
 
@@ -343,7 +346,7 @@ var _ = Describe("Client", func() {
 
 					redisClient := newRedisClient()
 
-					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -376,6 +379,7 @@ var _ = Describe("Client", func() {
 			It("should not return an error", func() {
 				err = client.Start()
 				Expect(err).To(BeNil())
+				Expect(client.conn).ToNot(BeNil())
 			})
 		})
 	})
@@ -387,7 +391,7 @@ var _ = Describe("Client", func() {
 		var wsServer *httptest.Server
 
 		BeforeEach(func() {
-			client, err = NewClient("TDEADBEEF", "{\"bot_token\":\"xoxo_deadbeef\"}")
+			client, err = NewClient("{\"team_id\":\"TDEADBEEF\",\"bot_token\":\"xoxo_deadbeef\"}")
 			Expect(err).To(BeNil())
 		})
 
@@ -418,7 +422,7 @@ var _ = Describe("Client", func() {
 				})
 
 				It("should not send an event to Redis", func() {
-					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(0))
@@ -459,7 +463,7 @@ var _ = Describe("Client", func() {
 					var resp Response
 					var event Event
 
-					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -516,7 +520,7 @@ var _ = Describe("Client", func() {
 					var resp Response
 					var event Event
 
-					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -573,7 +577,7 @@ var _ = Describe("Client", func() {
 					var resp Response
 					var event Event
 
-					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -643,7 +647,7 @@ var _ = Describe("Client", func() {
 					var resp Response
 					var event Event
 
-					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -705,7 +709,7 @@ var _ = Describe("Client", func() {
 					var resp Response
 					var event Event
 
-					resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -766,7 +770,7 @@ var _ = Describe("Client", func() {
 				var resp Response
 				var event Event
 
-				resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
@@ -826,7 +830,7 @@ var _ = Describe("Client", func() {
 				var resp Response
 				var event Event
 
-				resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
@@ -899,7 +903,7 @@ var _ = Describe("Client", func() {
 				var resp Response
 				var event Event
 
-				resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
@@ -961,7 +965,7 @@ var _ = Describe("Client", func() {
 				var resp Response
 				var event Event
 
-				resultevent := redisClient.BLPop(5*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))

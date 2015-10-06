@@ -124,8 +124,9 @@ type Metadata struct {
 }
 
 type Client struct {
-	SlackToken  string `json:"bot_token"`
-	TeamId      string
+	Token       string `json:"token"`
+	TeamId      string `json:"team_id"`
+	Provider    string `json:"provider"`
 	data        *Metadata
 	conn        *websocket.Conn
 	redisClient *redis.Client
@@ -158,14 +159,15 @@ type Event struct {
 	EventTimestamp string `json:"event_timestamp"`
 }
 
-func NewClient(teamId string, initJSON string) (*Client, error) {
-	var c Client
+var clientsMap = map[string]*Client{}
+
+func NewClient(initJSON string) (*Client, error) {
 	var err error
+	var c Client
 
 	if err = json.Unmarshal([]byte(initJSON), &c); err == nil {
-		c.TeamId = teamId
 	} else {
-		return nil, err
+		return &c, err
 	}
 
 	return &c, nil
@@ -194,12 +196,11 @@ func (c *Client) Login() error {
 			}
 
 			c.data = &metadata
+			return nil
 		} else {
 			return err
 		}
 	}
-
-	return nil
 }
 
 func (c *Client) Start() error {
@@ -240,7 +241,7 @@ func (c *Client) Start() error {
 }
 
 func (c *Client) callSlack(method string, params url.Values, expectedStatusCode int) (string, error) {
-	params.Set("token", c.SlackToken)
+	params.Set("token", c.Token)
 	method = "/api/" + method
 
 	return c.callAPI(os.Getenv("SLACK_HOST"), method, params, expectedStatusCode)
