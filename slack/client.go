@@ -245,7 +245,8 @@ func startReadFromRedisPubSubLoop() {
 	pubsub := redisClient.PubSub()
 	defer pubsub.Close()
 
-	err := pubsub.Subscribe(os.Getenv("REDIS_PUBSUB_RELAX"))
+	pubsubChannel := os.Getenv("REDIS_PUBSUB_RELAX")
+	err := pubsub.Subscribe(pubsubChannel)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -263,7 +264,7 @@ func startReadFromRedisPubSubLoop() {
 		} else {
 			switch msg := msgi.(type) {
 			case *redis.Message:
-				if msg.Channel != os.Getenv("REDIS_PUBSUB_RELAX") {
+				if msg.Channel != pubsubChannel {
 					break
 				}
 
@@ -285,6 +286,7 @@ func startReadFromRedisPubSubLoop() {
 					}
 					val := result.Val()
 					c := Clients[cmd.TeamId]
+
 					if c != nil {
 						err := c.Stop()
 						if err != nil {

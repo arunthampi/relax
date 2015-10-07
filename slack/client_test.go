@@ -74,10 +74,194 @@ func makeWsProto(s string) string {
 }
 
 var _ = Describe("Client", func() {
+	var rc *redis.Client
+
 	BeforeEach(func() {
 		os.Setenv("REDIS_HOST", "localhost:6379")
-		rc := newRedisClient()
+		rc = newRedisClient()
 		rc.FlushDb()
+	})
+
+	Describe("InitClients", func() {
+		var server *httptest.Server
+		var existingSlackHost string
+		var wsServer *httptest.Server
+
+		BeforeEach(func() {
+			setRedisQueueWebEnv()
+
+			wsServer = newWSServer(`
+						{
+							"type": "message",
+							"channel": "C024BE91L",
+							"user": "U023BECGF",
+							"text": "<@URELAXBOT>: Hello world",
+							"ts": "1355517523.000005"
+						}
+					`)
+
+			server = newTestServer(fmt.Sprintf(`
+{
+		"ok": true,
+		"url": "%s",
+		"self": {
+			"id": "URELAXBOT",
+			"name": "bot",
+			"created": 1402463766,
+			"manual_presence": "active"
+		},
+		"team": {
+			"id": "TDEADBEEF",
+			"name": "Example Team",
+			"email_domain": "",
+			"domain": "example",
+			"msg_edit_window_mins": -1,
+			"over_storage_limit": false,
+			"plan": "std"
+		},
+		"users": [
+			{
+				"id": "U023BECGF",
+				"name": "bobby",
+				"deleted": false,
+				"color": "9f69e7",
+				"profile": {
+						"first_name": "Bobby",
+						"last_name": "Tables",
+						"real_name": "Bobby Tables",
+						"email": "bobby@slack.com",
+						"skype": "my-skype-name",
+						"phone": "+1 (123) 456 7890",
+						"image_24": "https://...",
+						"image_32": "https://...",
+						"image_48": "https://...",
+						"image_72": "https://...",
+						"image_192": "https://..."
+				},
+				"is_admin": true,
+				"is_owner": true,
+				"has_2fa": false,
+				"has_files": true
+			}
+		],
+		"channels": [
+			{
+				"id": "C024BE91L",
+				"name": "fun",
+				"created": 1360782804,
+				"creator": "U024BE7LH",
+				"is_archived": false,
+				"is_member": false,
+				"num_members": 6,
+				"topic": {
+						"value": "Fun times",
+						"creator": "U024BE7LV",
+						"last_set": 1369677212
+				},
+				"purpose": {
+						"value": "This channel is for fun",
+						"creator": "U024BE7LH",
+						"last_set": 1360782804
+				}
+			}
+    ]
+}
+`, makeWsProto(wsServer.URL)), 200)
+			existingSlackHost = os.Getenv("SLACK_HOST")
+			os.Setenv("SLACK_HOST", server.URL)
+			os.Setenv("REDIS_KEY", "relax_redis_key")
+			os.Setenv("REDIS_PUBSUB_RELAX", "redis_pubsub_relax")
+		})
+
+		// InitClients() is what is called by main()
+		// so this acts like an integration test since we're testing end to end
+		Context("initializing clients from keys in Redis", func() {
+			BeforeEach(func() {
+				rc.HSet(os.Getenv("REDIS_KEY"), "TDEADBEEF", `{
+					"token": "xoxo_deadbeef",
+					"team_id": "TDEADBEEF",
+					"provider": "slack"
+				}`)
+			})
+
+			It("should initialize clients and respond to messages from Slack", func() {
+				var resp Response
+				var event Event
+
+				InitClients()
+				redisClient := newRedisClient()
+
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				result := resultevent.Val()
+
+				Expect(len(result)).To(Equal(2))
+				err := json.Unmarshal([]byte(result[1]), &resp)
+
+				Expect(err).To(BeNil())
+				Expect(resp.Type).To(Equal("message_new"))
+				err = json.Unmarshal([]byte(resp.Payload), &event)
+				Expect(err).To(BeNil())
+
+				Expect(event.ChannelUid).To(Equal("C024BE91L"))
+				Expect(event.UserUid).To(Equal("U023BECGF"))
+				Expect(event.Text).To(Equal("<@URELAXBOT>: Hello world"))
+				Expect(event.Timestamp).To(Equal("1355517523.000005"))
+				Expect(event.Im).To(BeFalse())
+				Expect(event.RelaxBotUid).To(Equal("URELAXBOT"))
+				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+				Expect(event.Provider).To(Equal("slack"))
+				Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+			})
+		})
+
+		Context("initializing clients from pubsub in Redis after InitClients has been called", func() {
+			BeforeEach(func() {
+				InitClients()
+			})
+
+			It("should initialize clients and respond to messages from Slack", func() {
+				var resp Response
+				var event Event
+
+				rc.HSet(os.Getenv("REDIS_KEY"), "TDEADBEEF", `{
+					"token": "xoxo_deadbeef",
+					"team_id": "TDEADBEEF",
+					"provider": "slack"
+				}`)
+
+				// The listener might not be ready yet, so let's loop until we do
+				intCmd := rc.Publish(os.Getenv("REDIS_PUBSUB_RELAX"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
+				for intCmd == nil || intCmd.Val() == 0 {
+					intCmd = rc.Publish(os.Getenv("REDIS_PUBSUB_RELAX"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
+				}
+
+				Expect(intCmd).ToNot(BeNil())
+				Expect(intCmd.Val()).To(Equal(int64(1)))
+
+				redisClient := newRedisClient()
+
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				result := resultevent.Val()
+
+				Expect(len(result)).To(Equal(2))
+				err := json.Unmarshal([]byte(result[1]), &resp)
+
+				Expect(err).To(BeNil())
+				Expect(resp.Type).To(Equal("message_new"))
+				err = json.Unmarshal([]byte(resp.Payload), &event)
+				Expect(err).To(BeNil())
+
+				Expect(event.ChannelUid).To(Equal("C024BE91L"))
+				Expect(event.UserUid).To(Equal("U023BECGF"))
+				Expect(event.Text).To(Equal("<@URELAXBOT>: Hello world"))
+				Expect(event.Timestamp).To(Equal("1355517523.000005"))
+				Expect(event.Im).To(BeFalse())
+				Expect(event.RelaxBotUid).To(Equal("URELAXBOT"))
+				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+				Expect(event.Provider).To(Equal("slack"))
+				Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+			})
+		})
 	})
 
 	Describe("NewClient", func() {
