@@ -8,6 +8,9 @@ import (
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/gopkg.in/redis.v3"
 )
 
+// isMessageForBot is a utility method that is used to check whether a message is intended
+// for the bot managed by Relax. This checks if an @-mention exists in the message
+// with the bot user id
 func isMessageForBot(msg *Message, botUserId string) bool {
 	re := regexp.MustCompile(fmt.Sprintf("<@(%s)>", botUserId))
 	isMessageForBot := false
@@ -20,6 +23,10 @@ func isMessageForBot(msg *Message, botUserId string) bool {
 	return isMessageForBot
 }
 
+// shouldSendEvent is a utility function that determines whether a message should be sent
+// back to the user. When relax is run in "high-availabilty" mode, (i.e. multiple instances of
+// Relax are running), we need to make sure that the same event is not sent more than once
+// back to the user. We use Redis to make sure to ensure the "send-only-once" requirement.
 func shouldSendEvent(event *Event) bool {
 	key := fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp)
 

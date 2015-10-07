@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -11,156 +12,26 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	"github.com/zerobotlabs/relax/utils"
+
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/gorilla/websocket"
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/gopkg.in/redis.v3"
 )
 
-type Channel struct {
-	Id        string `json:"id"`
-	Created   int64  `json:"created"`
-	Name      string `json:"name"`
-	CreatorId string `json:"creator"`
+// This data structure holds all clients that are connected to Slack's RealTime API
+// keyed by Team ID
+var Clients = map[string]*Client{}
 
-	Im bool
+func init() {
+	utils.SetupLogging()
 }
 
-type Response struct {
-	Type    string `json:"type"`
-	Payload string `json:"payload"`
-}
-
-type Im struct {
-	Id        string `json:"id"`
-	Created   int64  `json:"created"`
-	CreatorId string `json:"user"`
-}
-
-type Message struct {
-	Type             string `json:"type"`
-	Subtype          string `json:"subtype"`
-	Text             string `json:"text"`
-	Timestamp        string `json:"ts"`
-	DeletedTimestamp string `json:"deleted_ts"`
-	Reaction         string `json:"reaction"`
-	Hidden           bool   `json:"hidden"`
-	// For some events, such as message_changed, message_deleted, etc.
-	// the Timestamp field contains the timestamp of the original message
-	// so to make sure only one instance of the event is sent to REDIS_QUEUE_WEB
-	// only once, and will be used by the `shouldSendToBot` function
-	EventTimestamp string `json:"event_ts"`
-
-	User    User
-	Channel Channel
-
-	RawUser    json.RawMessage `json:"user"`
-	RawChannel json.RawMessage `json:"channel"`
-	RawMessage json.RawMessage `json:"message"`
-	RawItem    json.RawMessage `json:"item"`
-}
-
-func (m *Message) UserId() string {
-	userId := ""
-
-	userBytes, err := m.RawUser.MarshalJSON()
-	if err == nil {
-		// since we know it's a string, just remove the extra quotes
-		userId = strings.Trim(string(userBytes), "\"")
-	}
-
-	return userId
-}
-
-func (m *Message) ChannelId() string {
-	channelId := ""
-
-	channelBytes, err := m.RawChannel.MarshalJSON()
-	if err == nil {
-		// since we know it's a string, just remove the extra quotes
-		channelId = strings.Trim(string(channelBytes), "\"")
-	}
-
-	return channelId
-}
-
-func (m *Message) EmbeddedMessage() *Message {
-	messageBytes, err := m.RawMessage.MarshalJSON()
-
-	if err == nil {
-		var embeddedMessage Message
-		err = json.Unmarshal(messageBytes, &embeddedMessage)
-		if err == nil {
-			return &embeddedMessage
-		}
-	}
-
-	return nil
-}
-
-func (m *Message) EmbeddedItem() *Message {
-	messageBytes, err := m.RawItem.MarshalJSON()
-
-	if err == nil {
-		var embeddedItem Message
-		err = json.Unmarshal(messageBytes, &embeddedItem)
-		if err == nil {
-			return &embeddedItem
-		}
-	}
-
-	return nil
-}
-
-type Metadata struct {
-	Ok           bool      `json:"ok"`
-	Self         User      `json:"self"`
-	Url          string    `json:"url"`
-	ImsList      []Im      `json:"ims"`
-	ChannelsList []Channel `json:"channels"`
-	UsersList    []User    `json:"users"`
-	Error        string    `json:"error"`
-
-	Users    map[string]User
-	Channels map[string]Channel
-}
-
-type Client struct {
-	Token       string `json:"token"`
-	TeamId      string `json:"team_id"`
-	Provider    string `json:"provider"`
-	data        *Metadata
-	conn        *websocket.Conn
-	redisClient *redis.Client
-}
-
-type User struct {
-	Id                  string `json:"id"`
-	Name                string `json:"name"`
-	Color               string `json:"color"`
-	Timezone            string `json:"tz"`
-	TimezoneDescription string `json:"tz_label"`
-	TimezoneOffset      int64  `json:"tz_offset"`
-	IsDeleted           bool   `json:"deleted"`
-	IsAdmin             bool   `json:"is_admin"`
-	IsBot               bool   `json:"is_bot"`
-	IsOwner             bool   `json:"is_owner"`
-	IsPrimaryOwner      bool   `json:"is_primary_owner"`
-	IsRestricted        bool   `json:"is_restricted"`
-}
-
-type Event struct {
-	UserUid        string `json:"user_uid"`
-	ChannelUid     string `json:"channel_uid"`
-	TeamUid        string `json:"team_uid"`
-	Im             bool   `json:"im"`
-	Text           string `json:"text"`
-	RelaxBotUid    string `json:"relax_bot_uid"`
-	Timestamp      string `json:"timestamp"`
-	Provider       string `json:"provider"`
-	EventTimestamp string `json:"event_timestamp"`
-}
-
-var clientsMap = map[string]*Client{}
-
+// NewClient initializes a new client that connects to Slack's RealTime API
+// The client is initialized by JSON that looks like this:
+// {"token":"xoxo_token","team_id":"team_id","provider":"slack"}
+// where token is the token used by the bot, team_id is the ID for the team
+// and provider is "slack"
 func NewClient(initJSON string) (*Client, error) {
 	var err error
 	var c Client
@@ -173,6 +44,44 @@ func NewClient(initJSON string) (*Client, error) {
 	return &c, nil
 }
 
+// InitClients initializes all clients which are present in Redis on boot.
+// This looks for all hashes in the key REDIS_KEY and calls NewClient for each
+// hash present in the redis key. It also starts a loop to listen to REDIS_PUBSUB_RELAX
+// when new clients need to be started. It listens to Redis on pubsub instead of a queue
+// because there can be multiple instances of Relax running and they all need to start
+// a Slack client.
+func InitClients() {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_HOST"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
+	})
+
+	resultCmd := redisClient.HGetAll(os.Getenv("REDIS_KEY"))
+	result := resultCmd.Val()
+
+	for i := 0; i < len(result); i += 2 {
+		key := result[i]
+		val := result[i+1]
+
+		c, err := NewClient(val)
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"team":  val,
+				"error": err,
+			}).Error("starting slack client")
+		} else {
+			go c.LoginAndStart()
+			Clients[key] = c
+		}
+	}
+
+	go startReadFromRedisPubSubLoop()
+}
+
+// Login calls the "rtm.start" Slack API and gets a bunch of information such as
+// the websocket URL to connect to, users and channel information for the team and so on
 func (c *Client) Login() error {
 	contents, err := c.callSlack("rtm.start", map[string][]string{}, 200)
 	var metadata Metadata
@@ -203,6 +112,10 @@ func (c *Client) Login() error {
 	}
 }
 
+// Start starts a websocket connection to Slack's servers and starts listening for messages
+// If it detects an "invalid_auth" message, it means that the token provided by the user
+// has expired or is incorrect and so it sends a "disable_bot" event back to the user
+// so that they can take remedial action.
 func (c *Client) Start() error {
 	// Make connection to redis now
 	c.redisClient = redis.NewClient(&redis.Options{
@@ -219,7 +132,7 @@ func (c *Client) Start() error {
 			c.conn = conn
 		}
 
-		go c.startReadLoop()
+		go c.startReadFromSlackLoop()
 	} else {
 		// Bot has been disabled by the user,
 		// so we need to mark it as disabled
@@ -240,6 +153,28 @@ func (c *Client) Start() error {
 	return nil
 }
 
+// LoginAndStarts is a simple helper function that calls login and start successively
+// so that it can be invoked in a goroutine (as is done in InitClients)
+func (c *Client) LoginAndStart() error {
+	err := c.Login()
+
+	if err == nil {
+		err = c.Start()
+	}
+
+	return err
+}
+
+// Stop closes the websocket connection to Slack's websocket servers
+func (c *Client) Stop() error {
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+
+	return nil
+}
+
+// callSlack is a utility method that makes HTTP API calls to Slack
 func (c *Client) callSlack(method string, params url.Values, expectedStatusCode int) (string, error) {
 	params.Set("token", c.Token)
 	method = "/api/" + method
@@ -247,6 +182,8 @@ func (c *Client) callSlack(method string, params url.Values, expectedStatusCode 
 	return c.callAPI(os.Getenv("SLACK_HOST"), method, params, expectedStatusCode)
 }
 
+// sendEvent is a utility function that wraps event data in an Event struct
+// and sends them back to the user via Redis.
 func (c *Client) sendEvent(responseType string, msg *Message, text string, timestamp string, eventTimestamp string) error {
 	if responseType == "message_new" && !(msg.Channel.Im == true || isMessageForBot(msg, c.data.Self.Id)) {
 		return nil
@@ -296,7 +233,87 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 	return nil
 }
 
-func (c *Client) startReadLoop() {
+// startReadFromRedisPubSubLoop is the method invoked by InitClients that listens for new
+// clients that need to be started via a Redis Pubsub channel.
+func startReadFromRedisPubSubLoop() {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_HOST"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
+	})
+
+	pubsub := redisClient.PubSub()
+	defer pubsub.Close()
+
+	err := pubsub.Subscribe(os.Getenv("REDIS_PUBSUB_RELAX"))
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Error("error subscribing to redis pubsub")
+		return
+	}
+
+	for {
+		msgi, err := pubsub.ReceiveTimeout(100 * time.Millisecond)
+		if err != nil {
+			if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+				continue
+			}
+		} else {
+			switch msg := msgi.(type) {
+			case *redis.Message:
+				if msg.Channel != os.Getenv("REDIS_PUBSUB_RELAX") {
+					break
+				}
+
+				payload := msg.Payload
+				var cmd Command
+
+				if err := json.Unmarshal([]byte(payload), &cmd); err != nil {
+					break
+				}
+
+				switch cmd.Type {
+				case "team_added":
+					if cmd.TeamId == "" {
+						break
+					}
+					result := redisClient.HGet(os.Getenv("REDIS_KEY"), cmd.TeamId)
+					if result == nil {
+						break
+					}
+					val := result.Val()
+					c := Clients[cmd.TeamId]
+					if c != nil {
+						err := c.Stop()
+						if err != nil {
+							log.WithFields(log.Fields{
+								"team":  cmd.TeamId,
+								"error": err,
+							}).Error("closing websocket connection")
+						}
+					}
+
+					c, err := NewClient(val)
+					if err == nil {
+						c.LoginAndStart()
+						Clients[cmd.TeamId] = c
+					} else {
+						log.WithFields(log.Fields{
+							"team":  cmd.TeamId,
+							"error": err,
+						}).Error("starting client")
+					}
+				}
+			}
+		}
+	}
+}
+
+// startReadFromSlackLoop is the method invoked by Start() that listens to Slack's
+// websocket connection and handles messages accordingly.
+func (c *Client) startReadFromSlackLoop() {
 	for {
 		messageType, msg, err := c.conn.ReadMessage()
 		if err != nil {
@@ -309,12 +326,18 @@ func (c *Client) startReadLoop() {
 			if err = json.Unmarshal(msg, &message); err == nil {
 				c.handleMessage(&message)
 			} else {
-				fmt.Printf("error recognizing message from Slack, err: %s, error msg: %+v\n", msg, err)
+				log.WithFields(log.Fields{
+					"team":  c.TeamId,
+					"error": err,
+				}).Error("recognizing message from Slack")
 			}
 		}
 	}
 }
 
+// handleMessage is a utility method that handles the different Slack events that
+// are generated by the RealTime API. For each event that is handled here, a response
+// event is sent back to the user via a redis queue
 func (c *Client) handleMessage(msg *Message) {
 	switch msg.Type {
 	case "message":
@@ -388,6 +411,8 @@ func (c *Client) handleMessage(msg *Message) {
 	}
 }
 
+// callAPI is a utility method that is invoked by callSlack and is used to make
+// HTTP calls to REST API endpoints
 func (c *Client) callAPI(h string, method string, params url.Values, expectedStatusCode int) (string, error) {
 	u, err := url.ParseRequestURI(h)
 	if err != nil {
