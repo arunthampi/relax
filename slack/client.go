@@ -196,6 +196,7 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 	}
 
 	event := &Event{
+		Type:           responseType,
 		UserUid:        msg.User.Id,
 		ChannelUid:     msg.Channel.Id,
 		TeamUid:        c.TeamId,
@@ -208,22 +209,12 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 	}
 
 	eventJson, err := json.Marshal(event)
-	if err != nil {
-		return nil
-	}
-
-	response := &Response{
-		Type:    responseType,
-		Payload: string(eventJson),
-	}
-
-	jsonResponse, err := json.Marshal(response)
 
 	if err != nil {
 		return err
 	} else {
 		if shouldSendEvent(event) == true {
-			intCmd := c.redisClient.RPush(os.Getenv("REDIS_QUEUE_WEB"), string(jsonResponse))
+			intCmd := c.redisClient.RPush(os.Getenv("REDIS_QUEUE_WEB"), string(eventJson))
 			if intCmd == nil || intCmd.Val() != 1 {
 				return fmt.Errorf("Unexpected error while pushing to REDIS_QUEUE_WEB")
 			}

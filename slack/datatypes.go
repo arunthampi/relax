@@ -18,14 +18,6 @@ type Channel struct {
 	Im bool
 }
 
-// Response represents the response sent back to the user
-// whenever an event from Slack occurs. This could be a new message
-// that is received from Slack, or for e.g. when authentication to Slack fails
-type Response struct {
-	Type    string `json:"type"`
-	Payload string `json:"payload"`
-}
-
 type Command struct {
 	Type      string `json:"type"`
 	TeamId    string `json:"team_id"`
@@ -167,9 +159,9 @@ type User struct {
 
 // Event represents an event that is to be consumed by the user,
 // for e.g. when a message is received, an emoji reaction is added, etc.
-// an event is sent back to the user. An Event is typically sent as part
-// of a payload in the `Response` struct
+// an event is sent back to the user.
 type Event struct {
+	Type           string `json:"type"`
 	UserUid        string `json:"user_uid"`
 	ChannelUid     string `json:"channel_uid"`
 	TeamUid        string `json:"team_uid"`
