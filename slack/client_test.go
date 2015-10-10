@@ -33,7 +33,7 @@ func newTestServer(jsonResponse string, statusCode int) *httptest.Server {
 
 func setRedisQueueWebEnv() {
 	now := time.Now()
-	os.Setenv("REDIS_QUEUE_WEB", fmt.Sprintf("redis_key_queue_web_%d", now.Nanosecond()))
+	os.Setenv("RELAX_EVENTS_QUEUE", fmt.Sprintf("redis_key_queue_web_%d", now.Nanosecond()))
 }
 
 func newWSServer(wsResponse string) *httptest.Server {
@@ -169,15 +169,15 @@ var _ = Describe("Client", func() {
 `, makeWsProto(wsServer.URL)), 200)
 			existingSlackHost = os.Getenv("SLACK_HOST")
 			os.Setenv("SLACK_HOST", server.URL)
-			os.Setenv("REDIS_KEY", "relax_redis_key")
-			os.Setenv("REDIS_PUBSUB_RELAX", "redis_pubsub_relax")
+			os.Setenv("RELAX_BOTS_KEY", "relax_redis_key")
+			os.Setenv("REDIS_BOTS_PUBSUB", "redis_pubsub_relax")
 		})
 
 		// InitClients() is what is called by main()
 		// so this acts like an integration test since we're testing end to end
 		Context("initializing clients from keys in Redis", func() {
 			BeforeEach(func() {
-				rc.HSet(os.Getenv("REDIS_KEY"), "TDEADBEEF", `{
+				rc.HSet(os.Getenv("RELAX_BOTS_KEY"), "TDEADBEEF", `{
 					"token": "xoxo_deadbeef",
 					"team_id": "TDEADBEEF",
 					"provider": "slack"
@@ -190,7 +190,7 @@ var _ = Describe("Client", func() {
 				InitClients()
 				redisClient := newRedisClient()
 
-				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
@@ -218,16 +218,16 @@ var _ = Describe("Client", func() {
 			It("should initialize clients and respond to messages from Slack", func() {
 				var event Event
 
-				rc.HSet(os.Getenv("REDIS_KEY"), "TDEADBEEF", `{
+				rc.HSet(os.Getenv("RELAX_BOTS_KEY"), "TDEADBEEF", `{
 					"token": "xoxo_deadbeef",
 					"team_id": "TDEADBEEF",
 					"provider": "slack"
 				}`)
 
 				// The listener might not be ready yet, so let's loop until we do
-				intCmd := rc.Publish(os.Getenv("REDIS_PUBSUB_RELAX"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
+				intCmd := rc.Publish(os.Getenv("REDIS_BOTS_PUBSUB"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
 				for intCmd == nil || intCmd.Val() == 0 {
-					intCmd = rc.Publish(os.Getenv("REDIS_PUBSUB_RELAX"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
+					intCmd = rc.Publish(os.Getenv("REDIS_BOTS_PUBSUB"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
 				}
 
 				Expect(intCmd).ToNot(BeNil())
@@ -235,7 +235,7 @@ var _ = Describe("Client", func() {
 
 				redisClient := newRedisClient()
 
-				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
@@ -521,7 +521,7 @@ var _ = Describe("Client", func() {
 
 					redisClient := newRedisClient()
 
-					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -594,7 +594,7 @@ var _ = Describe("Client", func() {
 				})
 
 				It("should not send an event to Redis", func() {
-					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(0))
@@ -634,7 +634,7 @@ var _ = Describe("Client", func() {
 				It("should send an event to Redis", func() {
 					var event Event
 
-					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -687,7 +687,7 @@ var _ = Describe("Client", func() {
 				It("should send an event to Redis", func() {
 					var event Event
 
-					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -740,7 +740,7 @@ var _ = Describe("Client", func() {
 				It("should send an event to Redis", func() {
 					var event Event
 
-					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -806,7 +806,7 @@ var _ = Describe("Client", func() {
 					// with the same message.ts in that channel. If they find one the existing message should be replaced with the new one.
 					var event Event
 
-					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -864,7 +864,7 @@ var _ = Describe("Client", func() {
 					// with the same message.deleted_ts in that channel. If they find one they should delete this message
 					var event Event
 
-					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 					result := resultevent.Val()
 
 					Expect(len(result)).To(Equal(2))
@@ -921,7 +921,7 @@ var _ = Describe("Client", func() {
 			It("should send a 'reaction_added' event to Redis with the timestamp being the one set in item.ts", func() {
 				var event Event
 
-				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
@@ -977,7 +977,7 @@ var _ = Describe("Client", func() {
 			It("should send a 'reaction_removed' event to Redis with the timestamp being the one set in item.ts", func() {
 				var event Event
 
-				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
@@ -1046,7 +1046,7 @@ var _ = Describe("Client", func() {
 			It("should send a 'users_bulk_create' event to Redis with the team ID and the user", func() {
 				var event Event
 
-				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))
@@ -1104,7 +1104,7 @@ var _ = Describe("Client", func() {
 			It("should send a 'im_created' event to Redis with the team ID and the user", func() {
 				var event Event
 
-				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("REDIS_QUEUE_WEB"))
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 				result := resultevent.Val()
 
 				Expect(len(result)).To(Equal(2))

@@ -45,8 +45,8 @@ func NewClient(initJSON string) (*Client, error) {
 }
 
 // InitClients initializes all clients which are present in Redis on boot.
-// This looks for all hashes in the key REDIS_KEY and calls NewClient for each
-// hash present in the redis key. It also starts a loop to listen to REDIS_PUBSUB_RELAX
+// This looks for all hashes in the key RELAX_BOTS_KEY and calls NewClient for each
+// hash present in the redis key. It also starts a loop to listen to REDIS_BOTS_PUBSUB
 // when new clients need to be started. It listens to Redis on pubsub instead of a queue
 // because there can be multiple instances of Relax running and they all need to start
 // a Slack client.
@@ -57,7 +57,7 @@ func InitClients() {
 		DB:       0,
 	})
 
-	resultCmd := redisClient.HGetAll(os.Getenv("REDIS_KEY"))
+	resultCmd := redisClient.HGetAll(os.Getenv("RELAX_BOTS_KEY"))
 	result := resultCmd.Val()
 
 	for i := 0; i < len(result); i += 2 {
@@ -87,6 +87,11 @@ func (c *Client) Login() error {
 	var metadata Metadata
 
 	if err != nil {
+		log.WithFields(log.Fields{
+			"team":  c.TeamId,
+			"error": err,
+		}).Error("calling rtm.start")
+
 		return err
 	} else {
 		if err = json.Unmarshal([]byte(contents), &metadata); err == nil {
@@ -107,6 +112,11 @@ func (c *Client) Login() error {
 			c.data = &metadata
 			return nil
 		} else {
+			log.WithFields(log.Fields{
+				"team":  c.TeamId,
+				"error": err,
+			}).Error("parsing JSON response from rtm.start")
+
 			return err
 		}
 	}
@@ -127,6 +137,11 @@ func (c *Client) Start() error {
 	if c.data.Ok == true {
 		conn, _, err := websocket.DefaultDialer.Dial(c.data.Url, http.Header{})
 		if err != nil {
+			log.WithFields(log.Fields{
+				"team":  c.TeamId,
+				"error": err,
+			}).Error("dialing connection to Slack websocket")
+
 			return err
 		} else {
 			c.conn = conn
@@ -147,6 +162,11 @@ func (c *Client) Start() error {
 			}
 		}
 
+		log.WithFields(log.Fields{
+			"team":  c.TeamId,
+			"error": c.data.Error,
+		}).Error("starting slack client")
+
 		return fmt.Errorf(fmt.Sprintf("error connecting to slack websocket server: %s", c.data.Error))
 	}
 
@@ -160,6 +180,11 @@ func (c *Client) LoginAndStart() error {
 
 	if err == nil {
 		err = c.Start()
+	} else {
+		log.WithFields(log.Fields{
+			"team":  c.TeamId,
+			"error": err,
+		}).Error("logging in for slack client")
 	}
 
 	return err
@@ -214,9 +239,9 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 		return err
 	} else {
 		if shouldSendEvent(event) == true {
-			intCmd := c.redisClient.RPush(os.Getenv("REDIS_QUEUE_WEB"), string(eventJson))
+			intCmd := c.redisClient.RPush(os.Getenv("RELAX_EVENTS_QUEUE"), string(eventJson))
 			if intCmd == nil || intCmd.Val() != 1 {
-				return fmt.Errorf("Unexpected error while pushing to REDIS_QUEUE_WEB")
+				return fmt.Errorf("Unexpected error while pushing to RELAX_EVENTS_QUEUE")
 			}
 		}
 	}
@@ -236,7 +261,7 @@ func startReadFromRedisPubSubLoop() {
 	pubsub := redisClient.PubSub()
 	defer pubsub.Close()
 
-	pubsubChannel := os.Getenv("REDIS_PUBSUB_RELAX")
+	pubsubChannel := os.Getenv("REDIS_BOTS_PUBSUB")
 	err := pubsub.Subscribe(pubsubChannel)
 
 	if err != nil {
@@ -271,7 +296,7 @@ func startReadFromRedisPubSubLoop() {
 					if cmd.TeamId == "" {
 						break
 					}
-					result := redisClient.HGet(os.Getenv("REDIS_KEY"), cmd.TeamId)
+					result := redisClient.HGet(os.Getenv("RELAX_BOTS_KEY"), cmd.TeamId)
 					if result == nil {
 						break
 					}
