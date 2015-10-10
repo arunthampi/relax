@@ -18,8 +18,8 @@ func main() {
 		panic(err)
 	}
 
-	hcServer := &healthcheck.HealthCheckServer{}
-	go hcServer.Start("0.0.0.0", uint16(portInt))
-
 	slack.InitClients()
+
+	hcServer := &healthcheck.HealthCheckServer{}
+	hcServer.Start("0.0.0.0", uint16(portInt))
 }
