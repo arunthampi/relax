@@ -16,7 +16,7 @@ build:
 run: build
 	@script/server
 
-test: build
+test:
 	@script/test
 
 .PHONY: all build run test
