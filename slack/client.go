@@ -261,7 +261,7 @@ func startReadFromRedisPubSubLoop() {
 	pubsub := redisClient.PubSub()
 	defer pubsub.Close()
 
-	pubsubChannel := os.Getenv("REDIS_BOTS_PUBSUB")
+	pubsubChannel := os.Getenv("RELAX_BOTS_PUBSUB")
 	err := pubsub.Subscribe(pubsubChannel)
 
 	if err != nil {

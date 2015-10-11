@@ -170,7 +170,7 @@ var _ = Describe("Client", func() {
 			existingSlackHost = os.Getenv("SLACK_HOST")
 			os.Setenv("SLACK_HOST", server.URL)
 			os.Setenv("RELAX_BOTS_KEY", "relax_redis_key")
-			os.Setenv("REDIS_BOTS_PUBSUB", "redis_pubsub_relax")
+			os.Setenv("RELAX_BOTS_PUBSUB", "redis_pubsub_relax")
 		})
 
 		// InitClients() is what is called by main()
@@ -225,9 +225,9 @@ var _ = Describe("Client", func() {
 				}`)
 
 				// The listener might not be ready yet, so let's loop until we do
-				intCmd := rc.Publish(os.Getenv("REDIS_BOTS_PUBSUB"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
+				intCmd := rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
 				for intCmd == nil || intCmd.Val() == 0 {
-					intCmd = rc.Publish(os.Getenv("REDIS_BOTS_PUBSUB"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
+					intCmd = rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
 				}
 
 				Expect(intCmd).ToNot(BeNil())
