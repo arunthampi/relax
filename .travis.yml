@@ -1,0 +1,6 @@
+language: go
+go:
+  - 1.4
+services:
+  - redis-server
+script: make test
