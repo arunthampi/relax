@@ -1,7 +1,270 @@
 ## Relax
 
-Run multiple bots for Slack in a single process. This multiplexes
-several bots in a single process and is thus ideal for anyone trying to
-run "bot as a service" for Slack.
+Relax is a Go-based Message Broker for Slack Bots. What does that mean?
+If you are running a "bot-as-a-service" for Slack, you have to maintain
+hundreds (if not thousands) of websocket connections and handle the
+deluge of events from all these connections. Relax does all that heavy
+lifting for you and provides you with a single stream of events that
+your web app can then take action on. The protocol is JSON based and so
+any web app can communicate with Relax.
 
 ![Travis Badge for Relax](https://travis-ci.org/zerobotlabs/relax.svg?branch=master)
+
+If you are a Rails app however, there is a nifty [Ruby
+client](https://github.com/zerobotlabs/relax-rb) for you to use.
+
+**No knowledge of Go is required to run Relax**. In fact, if you are a Heroku
+user, you can deploy Relax right away with one click.
+
+![Deploy Relax to
+Heroku](https://www.heroku.com/deploy/?template=https://github.com/zerobotlabs/relax)
+
+## Installation
+
+The simplest way to install Relax is to run
+
+```go
+go get github.com/zerobotlabs/relax
+```
+
+Relax has been tested with Go1.4.
+
+## Running Relax
+
+To run it, basically run `relax` (assuming `$GOPATH/bin` is in your
+$PATH).
+
+`RELAX_BOTS_KEY=relax_bots_key RELAX_BOTS_PUBSUB=relax_bots_pubsub RELAX_EVENTS_QUEUE=relax_events_queue REDIS_HOST=localhost:6379 relax`
+
+Pre-built binaries for different platforms is coming soon.
+
+## Setup
+
+The Relax message broker requires a few environment variables to be set up (these same environment variables are also used to set up the Relax Ruby Client). These environment variables are basically Redis keys that can be configured based on your specific needs.
+
+`RELAX_BOTS_KEY`: This can be any string value and is used to store state about all Slack clients currently controlled by Relax in Redis.
+
+`RELAX_BOTS_PUBSUB`: This can be any string value and is used by Relax clients to notify Relax brokers that a new Slack bot has been started.
+
+`RELAX_EVENTS_QUEUE`: This can be any string value and is used by Relax brokers to send events to the client.
+
+
+## Protocol
+
+You interact with Relax by sending messages to Relax via Redis, there
+are two primary ways of interacting with Relax:
+
+### Starting Bots
+
+To start a bot, you need to `HSET` on `REDIS_BOTS_KEY` with a JSON blob
+containing `"team_id"` and `"token"` keys which represent the Team UID
+and Token for the bot you want to start. Along with this, you should
+also `PUBLISH` on `REDIS_BOTS_PUBSUB` with a JSON blob containing the
+keys `"type"` and `"team_id"` containing the values `"team_added"` and
+the Team UID of the bot you want to start.
+
+For e.g., for a bot who's Slack Team UID is "TDEADBEEF" and who's token
+is "xoxo_slackbotoken", you can issue the following commands using
+`redis-cli` to start a bot (assuming that `$REDIS_BOTS_KEY` is `redis_bots_key`):
+
+```bash
+$ redis-cli
+127.0.0.1:6379> MULTI
+OK
+127.0.0.1:6379> HSET redis_bots_key TDEADBEEF '{"team_id":"TDEADBEEF","token":"xoxo_slackbotoken"}'
+(integer) 1
+127.0.0.1:6379> HGETALL redis_bots_key
+1) "TDEADBEEF"
+2) "{\"team_id\":\"TDEADBEEF\",\"token\":\"xoxo_slackbotoken\"}"
+127.0.0.1:6379> PUBLISH redis_bots_key '{"type":"team_added","team_id":"TDEADBEEF"}'
+QUEUED
+127.0.0.1:6379> EXEC
+```
+
+### Listening for Events
+
+Relax also generates events (details of events are described in the "Events" section of the README).
+
+Events are queued in the `$REDIS_EVENTS_QUEUE` key in Redis and so to consume events,
+you need to `LPOP` or `BLPOP` the `$REDIS_EVENTS_QUEUE` to deal with events.
+
+## Events
+
+Slack Events are gathered from all teams that Slack is
+listening to and are multiplexed onto a single Redis queue. The event
+data structure consists of the following fields:
+
+### type
+
+This is a string value contains the type of event can hold the following values:
+
+`disable_bot`
+
+This event is sent when authentication with a team fails (either due to
+a wrong token or an expired token).
+
+`message_new`
+
+This is event is sent When a new message is received by Relax. *Note*:
+Only events for messages intended to Relax (so an @-mention to the bot or a
+direct message) are sent.
+
+`message_changed`
+
+This event is sent when a message has been edited.
+
+`message_deleted`
+
+This event is sent when a message has been deleted.
+
+`reaction_added`
+
+This event is sent when a reaction has been added to a message.
+
+`reaction_removed`
+
+This event is sent when a reaction has been removed from a message.
+
+`team_join`
+
+This event is sent when a new member has been added to the team. The
+best practice upon receiving this event is to refresh the team
+database and make sure that information on all members of the team is
+up to date.
+
+`im_created`
+
+This event is sent when a new direct message has been opened with the
+bot. This can be ignored in most cases as it is used by Relax to keep
+internal metadata in sync.
+
+### user_uid
+
+This is a string value and is the UID (generated by Slack) of the user associated with the
+event. So in the case of `message_new` it's the UID of the user who
+created the message, for `reaction_added`, it's the UID of the user who added a reaction to a message.
+
+### channel_uid
+
+This is the UID (generated by Slack) of the channel associated with the event.
+
+### im
+
+This is a boolean value to indicate whether the channel (with the UID
+`channel_uid`) is an IM or not.
+
+### text
+
+This is a string value and contains the text associated with the
+event. This can mean different things in different contexts:
+
+`message_new`
+
+For the event type `message_new`, this is the message text.
+
+`message_changed`
+
+For the event type `message_changed`, this is the *new* value of the
+message.
+
+`message_deleted`
+
+For the event type `message_edited`, this is the value of the
+message which has been deleted.
+
+`reaction_added`
+
+For the event type `reaction_added`, this is the value of the reaction
+added to a message. This contains the text
+representation of a reaction, for e.g. `:simple_smiley:`
+
+`reaction_removed`
+
+For the event type `reaction_removed`, this is the value of the reaction
+removed from a message. This contain the text
+representation of a reaction, for e.g. `:simple_smiley:`
+
+`team_join`
+
+Since there is no text metadata associated with this event, it is always
+blank.
+
+
+`im_created`
+
+Since there is no text metadata associated with this event, it is always
+blank.
+
+
+### relax_bot_uid
+
+This is a string value and represent the UID of the bot that Relax
+controls. This is useful if you want to strip out the @-mention word in
+a message @-mention'ed to the bot.
+
+### timestamp
+
+This is a string value and represents the timestamp at which a
+particular event occurred but can have different meanings in different
+contexts:
+
+`disable_bot`
+
+For the event type "disable_bot", this is an empty string.
+
+`message_new`
+
+For the event type "message_new", this is the timestamp at which the
+message was created. In this case, `timestamp` and `event_timestamp`
+will be the same.
+
+`message_changed`
+
+For the event type "message_changed", this is the timestamp of the
+message that has been changed. Upon receiving a "message_changed" event,
+you can use "channel_uid" and "timestamp" to identify the message who's
+text has been changed and modify its text accordingly.
+
+`message_deleted`
+
+For the event type "message_deleted", this is the timestamp of the
+message that has been deleted. Upon receiving a "message_changed" event,
+you can use "channel_uid" and "timestamp" to identify the message that
+has been deleted and delete that message accordingly.
+
+`reaction_added`
+
+For the event type "reaction_added", this is the timestamp of the
+message for which a reaction has been added. Upon receiving a
+"reaction_added" event,
+you can use "channel_uid" and "timestamp" to identify the message for
+which a reaction has been added and change the metadata for that message
+accordingly.
+
+`reaction_removed`
+
+For the event type "reaction_removed", this is the timestamp of the
+message for which a reaction has been removed. Upon receiving a
+"reaction_removed" event,
+you can use "channel_uid" and "timestamp" to identify the message for
+which a reaction has been removed and change the metadata for that message
+accordingly.
+
+`team_join`
+
+For the event type "team_join", this is an empty string.
+
+`im_created`
+
+For the event type "im_created", this is an empty string.
+
+### provider
+
+This is a string value and until Relax supports multiple providers,
+this is always "slack".
+
+### event_timestamp
+
+This is a string value and represents the time at which an event occurs.
+In the case of `disable_bot`, `team_join` and `im_created` events, it is
+an empty string.
