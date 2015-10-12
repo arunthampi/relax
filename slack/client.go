@@ -204,7 +204,12 @@ func (c *Client) callSlack(method string, params url.Values, expectedStatusCode 
 	params.Set("token", c.Token)
 	method = "/api/" + method
 
-	return c.callAPI(os.Getenv("SLACK_HOST"), method, params, expectedStatusCode)
+	host := os.Getenv("SLACK_HOST")
+	if host == "" {
+		host = "https://api.slack.com"
+	}
+
+	return c.callAPI(host, method, params, expectedStatusCode)
 }
 
 // sendEvent is a utility function that wraps event data in an Event struct
