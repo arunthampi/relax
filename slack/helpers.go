@@ -5,7 +5,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/zerobotlabs/relax/Godeps/_workspace/src/gopkg.in/redis.v3"
+	"github.com/zerobotlabs/relax/redisclient"
 )
 
 // isMessageForBot is a utility method that is used to check whether a message is intended
@@ -30,11 +30,7 @@ func isMessageForBot(msg *Message, botUserId string) bool {
 func shouldSendEvent(event *Event) bool {
 	key := fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp)
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_HOST"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       0,
-	})
+	redisClient := redisclient.Client()
 
 	boolCmd := redisClient.HSetNX(os.Getenv("REDIS_MUTEX_KEY"), key, "ok")
 

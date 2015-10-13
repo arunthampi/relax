@@ -13,6 +13,7 @@ import (
 	"time"
 
 	log "github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	"github.com/zerobotlabs/relax/redisclient"
 	"github.com/zerobotlabs/relax/utils"
 
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/gorilla/websocket"
@@ -51,11 +52,7 @@ func NewClient(initJSON string) (*Client, error) {
 // because there can be multiple instances of Relax running and they all need to start
 // a Slack client.
 func InitClients() {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_HOST"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       0,
-	})
+	redisClient := redisclient.Client()
 
 	resultCmd := redisClient.HGetAll(os.Getenv("RELAX_BOTS_KEY"))
 	result := resultCmd.Val()
@@ -128,11 +125,7 @@ func (c *Client) Login() error {
 // so that they can take remedial action.
 func (c *Client) Start() error {
 	// Make connection to redis now
-	c.redisClient = redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_HOST"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       0,
-	})
+	c.redisClient = redisclient.Client()
 
 	if c.data.Ok == true {
 		conn, _, err := websocket.DefaultDialer.Dial(c.data.Url, http.Header{})
@@ -257,11 +250,7 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 // startReadFromRedisPubSubLoop is the method invoked by InitClients that listens for new
 // clients that need to be started via a Redis Pubsub channel.
 func startReadFromRedisPubSubLoop() {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_HOST"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       0,
-	})
+	redisClient := redisclient.Client()
 
 	pubsub := redisClient.PubSub()
 	defer pubsub.Close()
