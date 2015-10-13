@@ -50,7 +50,7 @@ func Client() *redis.Client {
 				"host":   host,
 				"err":    err,
 				"result": result,
-			}).Error("retrying connecting to redis host, failed credentials")
+			}).Error("retrying connecting to redis host")
 
 			time.Sleep(5 * time.Second)
 			result, err = redisClient.Ping().Result()
