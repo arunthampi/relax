@@ -24,6 +24,13 @@ deployment will take a while to come up as well. You can see Relax
 trying to connect to Heroku's Redis server by tailing logs `heroku logs
 --tail -a <your-heroku-app-name>`. After a while, it should connect.
 
+## Coming Soon
+
+* Pluggable Messaging Backends
+* Analytics
+* Don't want to host it yourself? Get in touch at
+  [hello@zerobotlabs.com](mailto:hello@zerobotlabs.com)
+
 ## Installation
 
 The simplest way to install Relax is to run
