@@ -97,7 +97,7 @@ QUEUED
 
 ### Listening for Events
 
-Relax also generates events (details of events are described in the "Events" section of the README).
+Relax also generates events (details of events are described in the ["Events" section of the README](https://github.com/zerobotlabs/relax#events))
 
 Events are queued in the `$REDIS_EVENTS_QUEUE` key in Redis and so to consume events,
 you need to `LPOP` or `BLPOP` the `$REDIS_EVENTS_QUEUE` to deal with events.
@@ -112,45 +112,15 @@ data structure consists of the following fields:
 
 This is a string value contains the type of event can hold the following values:
 
-`disable_bot`
-
-This event is sent when authentication with a team fails (either due to
-a wrong token or an expired token).
-
-`message_new`
-
-This is event is sent When a new message is received by Relax. *Note*:
-Only events for messages intended to Relax (so an @-mention to the bot or a
-direct message) are sent.
-
-`message_changed`
-
-This event is sent when a message has been edited.
-
-`message_deleted`
-
-This event is sent when a message has been deleted.
-
-`reaction_added`
-
-This event is sent when a reaction has been added to a message.
-
-`reaction_removed`
-
-This event is sent when a reaction has been removed from a message.
-
-`team_join`
-
-This event is sent when a new member has been added to the team. The
-best practice upon receiving this event is to refresh the team
-database and make sure that information on all members of the team is
-up to date.
-
-`im_created`
-
-This event is sent when a new direct message has been opened with the
-bot. This can be ignored in most cases as it is used by Relax to keep
-internal metadata in sync.
+Type               | What it does
+-------------------|---------------
+`disable_bot`      | This event is sent when authentication with a team fails (either due to a wrong token or an expired token).  `message_new`    | This is event is sent When a new message is received by Relax. *Note*: Only events for messages intended to Relax (so an @-mention to the bot or a direct message) are sent.
+`message_changed`  | This event is sent when a message has been edited.
+`message_deleted`  | This event is sent when a message has been deleted.
+`reaction_added`   | This event is sent when a reaction has been added to a message.
+`reaction_removed` | This event is sent when a reaction has been removed from a message.
+`team_join`        | This event is sent when a new member has been added to the team. The best practice upon receiving this event is to refresh the team database and make sure that information on all members of the team is up to date.
+`im_created`       | This event is sent when a new direct message has been opened with the bot. This can be ignored in most cases as it is used by Relax to keep internal metadata in sync.
 
 ### user_uid
 
@@ -172,43 +142,15 @@ This is a boolean value to indicate whether the channel (with the UID
 This is a string value and contains the text associated with the
 event. This can mean different things in different contexts:
 
-`message_new`
-
-For the event type `message_new`, this is the message text.
-
-`message_changed`
-
-For the event type `message_changed`, this is the *new* value of the
-message.
-
-`message_deleted`
-
-For the event type `message_edited`, this is the value of the
-message which has been deleted.
-
-`reaction_added`
-
-For the event type `reaction_added`, this is the value of the reaction
-added to a message. This contains the text
-representation of a reaction, for e.g. `:simple_smiley:`
-
-`reaction_removed`
-
-For the event type `reaction_removed`, this is the value of the reaction
-removed from a message. This contain the text
-representation of a reaction, for e.g. `:simple_smiley:`
-
-`team_join`
-
-Since there is no text metadata associated with this event, it is always
-blank.
-
-
-`im_created`
-
-Since there is no text metadata associated with this event, it is always
-blank.
-
+Type               | What "text" field means
+-------------------|---------------
+`message_new`      | The message text
+`message_changed`  | The *new* text of the message
+`message_deleted`  | The original message text
+`reaction_added`   | Reaction added to a message. This contains the text representation of a reaction, for e.g. `:simple_smiley:`
+`reaction_removed` | Reaction removed from a message. This contain the text representation of a reaction, for e.g. `:simple_smiley:`
+`team_join`        | Since there is no text metadata associated with this event, it is always blank.
+`im_created`       | Since there is no text metadata associated with this event, it is always blank.
 
 ### relax_bot_uid
 
@@ -222,55 +164,16 @@ This is a string value and represents the timestamp at which a
 particular event occurred but can have different meanings in different
 contexts:
 
-`disable_bot`
-
-For the event type "disable_bot", this is an empty string.
-
-`message_new`
-
-For the event type "message_new", this is the timestamp at which the
-message was created. In this case, `timestamp` and `event_timestamp`
-will be the same.
-
-`message_changed`
-
-For the event type "message_changed", this is the timestamp of the
-message that has been changed. Upon receiving a "message_changed" event,
-you can use "channel_uid" and "timestamp" to identify the message who's
-text has been changed and modify its text accordingly.
-
-`message_deleted`
-
-For the event type "message_deleted", this is the timestamp of the
-message that has been deleted. Upon receiving a "message_changed" event,
-you can use "channel_uid" and "timestamp" to identify the message that
-has been deleted and delete that message accordingly.
-
-`reaction_added`
-
-For the event type "reaction_added", this is the timestamp of the
-message for which a reaction has been added. Upon receiving a
-"reaction_added" event,
-you can use "channel_uid" and "timestamp" to identify the message for
-which a reaction has been added and change the metadata for that message
-accordingly.
-
-`reaction_removed`
-
-For the event type "reaction_removed", this is the timestamp of the
-message for which a reaction has been removed. Upon receiving a
-"reaction_removed" event,
-you can use "channel_uid" and "timestamp" to identify the message for
-which a reaction has been removed and change the metadata for that message
-accordingly.
-
-`team_join`
-
-For the event type "team_join", this is an empty string.
-
-`im_created`
-
-For the event type "im_created", this is an empty string.
+Type               | What "timestamp" field means
+-------------------|---------------
+`disable_bot`      | Empty string
+`message_new`      | Timestamp at which the message was created. In this case, `timestamp` and `event_timestamp` will be the same
+`message_changed`  | Timestamp of the message that has been changed. Upon receiving a "message_changed" event, you can use "channel_uid" and "timestamp" to identify the message who's text has been changed and modify its text accordingly
+`message_deleted`  | Timestamp of the message that has been deleted. Upon receiving a "message_changed" event, you can use "channel_uid" and "timestamp" to identify the message that has been deleted and delete that message accordingly
+`reaction_added`   | Timestamp of the message for which a reaction has been added. Upon receiving a "reaction_added" event, you can use "channel_uid" and "timestamp" to identify the message for which a reaction has been added and change the metadata for that message accordingly
+`reaction_removed` | Timestamp of the message for which a reaction has been removed. Upon receiving a "reaction_removed" event, you can use "channel_uid" and "timestamp" to identify the message for which a reaction has been removed and change the metadata for that message accordingly
+`team_join`        | Empty string
+`im_created`       | Empty string
 
 ### provider
 
