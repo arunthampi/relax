@@ -24,7 +24,7 @@ func (hs *HealthCheckServer) Start(host string, port uint16) {
 			"error": err,
 		}).Error("relax: cannot start healthcheck server")
 	} else {
-		log.Info("relax: started healthcheck server on: %s", fmt.Sprintf("%s:%d", host, port))
+		log.Info("relax: started healthcheck server on ", fmt.Sprintf("%s:%d", host, port))
 	}
 
 	log.Info("relax: healthcheck server stopped")
