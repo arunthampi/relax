@@ -80,6 +80,7 @@ var _ = Describe("Client", func() {
 		os.Setenv("REDIS_HOST", "localhost:6379")
 		rc = newRedisClient()
 		rc.FlushDb()
+		Clients = map[string]*Client{}
 	})
 
 	Describe("InitClients", func() {
@@ -176,12 +177,17 @@ var _ = Describe("Client", func() {
 		// InitClients() is what is called by main()
 		// so this acts like an integration test since we're testing end to end
 		Context("initializing clients from keys in Redis", func() {
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				rc.HSet(os.Getenv("RELAX_BOTS_KEY"), "TDEADBEEF", `{
 					"token": "xoxo_deadbeef",
 					"team_id": "TDEADBEEF",
 					"provider": "slack"
 				}`)
+			})
+
+			AfterEach(func() {
+				server.Close()
+				wsServer.Close()
 			})
 
 			It("should initialize clients and respond to messages from Slack", func() {
@@ -211,23 +217,29 @@ var _ = Describe("Client", func() {
 		})
 
 		Context("initializing clients from pubsub in Redis after InitClients has been called", func() {
-			BeforeEach(func() {
-				InitClients()
-			})
-
-			It("should initialize clients and respond to messages from Slack", func() {
-				var event Event
-
+			JustBeforeEach(func() {
 				rc.HSet(os.Getenv("RELAX_BOTS_KEY"), "TDEADBEEF", `{
 					"token": "xoxo_deadbeef",
 					"team_id": "TDEADBEEF",
 					"provider": "slack"
 				}`)
 
+				InitClients()
+			})
+
+			AfterEach(func() {
+				server.Close()
+				wsServer.Close()
+			})
+
+			It("should initialize clients and respond to messages from Slack", func() {
+				var event Event
+
 				// The listener might not be ready yet, so let's loop until we do
 				intCmd := rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
 				for intCmd == nil || intCmd.Val() == 0 {
 					intCmd = rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"team_added","team_id":"TDEADBEEF"}`)
+					time.Sleep(500 * time.Millisecond)
 				}
 
 				Expect(intCmd).ToNot(BeNil())
@@ -297,6 +309,7 @@ var _ = Describe("Client", func() {
 
 			AfterEach(func() {
 				os.Setenv("SLACK_HOST", existingSlackHost)
+				server.Close()
 			})
 
 			It("shouldn't set the metadata", func() {
