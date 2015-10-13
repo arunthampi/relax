@@ -3,7 +3,9 @@
 Relax is a Go-based Message Broker for Slack Bots. What does that mean?
 If you are running a "bot-as-a-service" for Slack, you have to maintain
 hundreds (if not thousands) of websocket connections and handle the
-deluge of events from all these connections. Relax does all that heavy
+deluge of events from all these connections.
+
+Relax does all that heavy
 lifting for you and provides you with a single stream of events that
 your web app can then take action on. The protocol is JSON based and so
 any web app can communicate with Relax.
