@@ -18,6 +18,12 @@ user, you can deploy Relax right away with one click.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
+**Known Issue:** When deploying using the "Deploy with Heroku" button,
+Heroku's Free Redis server takes a while to boot up, so your Relax
+deployment will take a while to come up as well. You can see Relax
+trying to connect to Heroku's Redis server by tailing logs `heroku logs
+--tail -a <your-heroku-app-name>`. After a while, it should connect.
+
 ## Installation
 
 The simplest way to install Relax is to run
