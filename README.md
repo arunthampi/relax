@@ -75,7 +75,7 @@ OK
 127.0.0.1:6379> HGETALL redis_bots_key
 1) "TDEADBEEF"
 2) "{\"team_id\":\"TDEADBEEF\",\"token\":\"xoxo_slackbotoken\"}"
-127.0.0.1:6379> PUBLISH redis_bots_key '{"type":"team_added","team_id":"TDEADBEEF"}'
+127.0.0.1:6379> PUBLISH redis_bots_pubsub '{"type":"team_added","team_id":"TDEADBEEF"}'
 QUEUED
 127.0.0.1:6379> EXEC
 ```
