@@ -8,7 +8,7 @@ lifting for you and provides you with a single stream of events that
 your web app can then take action on. The protocol is JSON based and so
 any web app can communicate with Relax.
 
-![Travis Badge for Relax](https://travis-ci.org/zerobotlabs/relax.svg?branch=master)
+[![Travis Badge for Relax](https://travis-ci.org/zerobotlabs/relax.svg?branch=master)](https://travis-ci.org/zerobotlabs/relax)
 
 If you are a Rails app however, there is a nifty [Ruby
 client](https://github.com/zerobotlabs/relax-rb) for you to use.
