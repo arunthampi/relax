@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -16,6 +17,12 @@ func main() {
 	portInt, err := strconv.Atoi(port)
 	if err != nil {
 		panic(err)
+	}
+
+	if os.Getenv("RELAX_BOTS_KEY") == "" || os.Getenv("RELAX_BOTS_PUBSUB") == "" ||
+		os.Getenv("RELAX_EVENTS_QUEUE") == "" || os.Getenv("REDIS_URL") == "" {
+		fmt.Printf("usage: RELAX_BOTS_KEY=relax_bots_queue RELAX_BOTS_PUBSUB=relax_bots_pubsub RELAX_EVENTS_QUEUE=relax_events_queue REDIS_URL=redis://localhost:6379 relax\n")
+		os.Exit(1)
 	}
 
 	slack.InitClients()
