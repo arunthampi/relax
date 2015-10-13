@@ -41,16 +41,15 @@ The simplest way to install Relax is to run
 go get github.com/zerobotlabs/relax
 ```
 
+Pre-built binaries for different platforms is coming soon.
+
 Relax has been tested with Go1.4.
 
 ## Running Relax
 
-To run it, basically run `relax` (assuming `$GOPATH/bin` is in your
-$PATH).
+To run it, basically run `relax` (assuming `$GOPATH/bin` is in your $PATH).
 
 `RELAX_BOTS_KEY=relax_bots_key RELAX_BOTS_PUBSUB=relax_bots_pubsub RELAX_EVENTS_QUEUE=relax_events_queue REDIS_HOST=localhost:6379 relax`
-
-Pre-built binaries for different platforms is coming soon.
 
 ## Setup
 
