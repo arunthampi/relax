@@ -16,8 +16,7 @@ client](https://github.com/zerobotlabs/relax-rb) for you to use.
 **No knowledge of Go is required to run Relax**. In fact, if you are a Heroku
 user, you can deploy Relax right away with one click.
 
-![Deploy Relax to
-Heroku](https://www.heroku.com/deploy/?template=https://github.com/zerobotlabs/relax)
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
 ## Installation
 

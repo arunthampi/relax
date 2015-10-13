@@ -1,0 +1,23 @@
+{
+  "name": "Relax",
+  "description": "A Go Message Broker for Slack Bots",
+  "repository": "https://github.com/zerobotlabs/relax",
+  "keywords": ["golang", "slack", "bots", "relax"],
+  "env": {
+    "RELAX_BOTS_KEY": {
+      "description": "Redis Key used to store information about all Slack bots",
+      "value": "relax_bots_key"
+    },
+    "RELAX_BOTS_PUBSUB": {
+      "description": "Redis Key used to receive PUBLISH messages from Relax clients",
+      "value": "relax_bots_pubsub"
+    },
+    "RELAX_EVENTS_QUEUE": {
+      "description": "Redis Key used to receive events from Relax brokers",
+      "value": "relax_events_queue"
+    }
+  },
+  "addons": [
+    "heroku-redis"
+  ]
+}
