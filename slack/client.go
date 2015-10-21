@@ -359,25 +359,33 @@ func startReadFromRedisPubSubLoop() {
 func (c *Client) startReadFromSlackLoop() {
 	for {
 		messageType, msg, err := c.conn.ReadMessage()
-		if err != nil {
-			log.WithFields(log.Fields{
-				"team":  c.TeamId,
-				"error": err,
-			}).Error("error reading message from slack websocket connection")
+		if err == nil {
+			if messageType == websocket.TextMessage {
+				var message Message
 
-			continue
-		}
-
-		if messageType == websocket.TextMessage {
-			var message Message
-
-			if err = json.Unmarshal(msg, &message); err == nil {
-				c.handleMessage(&message)
-			} else {
+				if err = json.Unmarshal(msg, &message); err == nil {
+					c.handleMessage(&message)
+				} else {
+					log.WithFields(log.Fields{
+						"team":  c.TeamId,
+						"error": err,
+					}).Error("recognizing message from Slack")
+				}
+			}
+		} else {
+			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				log.WithFields(log.Fields{
 					"team":  c.TeamId,
 					"error": err,
-				}).Error("recognizing message from Slack")
+				}).Error("error reading message from slack websocket connection, timeout")
+			} else {
+				// Reconnect the client
+				log.WithFields(log.Fields{
+					"team":  c.TeamId,
+					"error": err,
+				}).Error("error reading message from slack websocket connection")
+
+				return
 			}
 		}
 	}
