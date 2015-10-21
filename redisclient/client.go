@@ -38,9 +38,10 @@ func Client() *redis.Client {
 		}
 
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:     host,
-			Password: password,
-			DB:       0,
+			Addr:       host,
+			Password:   password,
+			DB:         0,
+			MaxRetries: 5,
 		})
 
 		result, err := redisClient.Ping().Result()
