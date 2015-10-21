@@ -61,6 +61,7 @@ The Relax message broker requires a few environment variables to be set up (thes
 
 `RELAX_EVENTS_QUEUE`: This can be any string value and is used by Relax brokers to send events to the client.
 
+`RELAX_MUTEX_KEY`: This can be any string value and is used by Relax brokers to decide whether to send events back to clients.
 
 ## Protocol
 

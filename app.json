@@ -4,6 +4,10 @@
   "repository": "https://github.com/zerobotlabs/relax",
   "keywords": ["golang", "slack", "bots", "relax"],
   "env": {
+    "RELAX_MUTEX_KEY": {
+      "description": "Redis Key used as a lock to decide whether to send events back to clients",
+      "value": "relax_mutex_key"
+    },
     "RELAX_BOTS_KEY": {
       "description": "Redis Key used to store information about all Slack bots",
       "value": "relax_bots_key"
