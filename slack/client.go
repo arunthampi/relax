@@ -244,6 +244,12 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 			key := fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp)
 			boolCmd := tx.HSetNX(os.Getenv("RELAX_MUTEX_KEY"), key, "ok")
 
+			log.WithFields(log.Fields{
+				"team":      c.TeamId,
+				"timestamp": event.EventTimestamp,
+				"channel":   event.ChannelUid,
+			}).Debug("sending event back to client")
+
 			if boolCmd != nil {
 				shouldSend = boolCmd.Val()
 			}
@@ -253,6 +259,12 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 				if intCmd == nil || intCmd.Val() != 1 {
 					return fmt.Errorf("Unexpected error while pushing to RELAX_EVENTS_QUEUE")
 				}
+			} else {
+				log.WithFields(log.Fields{
+					"team":      c.TeamId,
+					"timestamp": event.EventTimestamp,
+					"channel":   event.ChannelUid,
+				}).Debug("ignoring, not sending event back to client")
 			}
 
 			return nil
@@ -348,6 +360,11 @@ func (c *Client) startReadFromSlackLoop() {
 	for {
 		messageType, msg, err := c.conn.ReadMessage()
 		if err != nil {
+			log.WithFields(log.Fields{
+				"team":  c.TeamId,
+				"error": err,
+			}).Error("error reading message from slack websocket connection")
+
 			continue
 		}
 
