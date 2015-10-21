@@ -78,6 +78,8 @@ var _ = Describe("Client", func() {
 
 	BeforeEach(func() {
 		os.Setenv("REDIS_HOST", "localhost:6379")
+		os.Setenv("RELAX_MUTEX_KEY", "relax_mutex_key")
+
 		rc = newRedisClient()
 		rc.FlushDb()
 		Clients = map[string]*Client{}
@@ -174,6 +176,11 @@ var _ = Describe("Client", func() {
 			os.Setenv("RELAX_BOTS_PUBSUB", "redis_pubsub_relax")
 		})
 
+		AfterEach(func() {
+			server.Close()
+			wsServer.Close()
+		})
+
 		// InitClients() is what is called by main()
 		// so this acts like an integration test since we're testing end to end
 		Context("initializing clients from keys in Redis", func() {
@@ -183,11 +190,6 @@ var _ = Describe("Client", func() {
 					"team_id": "TDEADBEEF",
 					"provider": "slack"
 				}`)
-			})
-
-			AfterEach(func() {
-				server.Close()
-				wsServer.Close()
 			})
 
 			It("should initialize clients and respond to messages from Slack", func() {
@@ -213,6 +215,34 @@ var _ = Describe("Client", func() {
 				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 				Expect(event.Provider).To(Equal("slack"))
 				Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+
+				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal("ok"))
+			})
+		})
+
+		Context("RELAX_MUTEX_KEY already has the event registered", func() {
+			JustBeforeEach(func() {
+				val := rc.HSet(os.Getenv("RELAX_MUTEX_KEY"), "bot_message:C024BE91L:1355517523.000005", "ok")
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal(true))
+
+				rc.HSet(os.Getenv("RELAX_BOTS_KEY"), "TDEADBEEF", `{
+					"token": "xoxo_deadbeef",
+					"team_id": "TDEADBEEF",
+					"provider": "slack"
+				}`)
+			})
+
+			It("should initialize clients but not send any events", func() {
+				InitClients()
+				redisClient := newRedisClient()
+
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
+				result := resultevent.Val()
+
+				Expect(len(result)).To(Equal(0))
 			})
 		})
 
@@ -227,11 +257,6 @@ var _ = Describe("Client", func() {
 				InitClients()
 			})
 
-			AfterEach(func() {
-				server.Close()
-				wsServer.Close()
-			})
-
 			It("should initialize clients and respond to messages from Slack", func() {
 				var event Event
 
@@ -243,7 +268,6 @@ var _ = Describe("Client", func() {
 				}
 
 				Expect(intCmd).ToNot(BeNil())
-				Expect(intCmd.Val()).To(Equal(int64(1)))
 
 				redisClient := newRedisClient()
 
@@ -264,6 +288,10 @@ var _ = Describe("Client", func() {
 				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 				Expect(event.Provider).To(Equal("slack"))
 				Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+
+				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal("ok"))
 			})
 		})
 	})
@@ -664,6 +692,10 @@ var _ = Describe("Client", func() {
 					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 					Expect(event.Provider).To(Equal("slack"))
 					Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+
+					val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+					Expect(val).ToNot(BeNil())
+					Expect(val.Val()).To(Equal("ok"))
 				})
 			})
 
@@ -717,6 +749,10 @@ var _ = Describe("Client", func() {
 					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 					Expect(event.Provider).To(Equal("slack"))
 					Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+
+					val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+					Expect(val).ToNot(BeNil())
+					Expect(val.Val()).To(Equal("ok"))
 				})
 			})
 
@@ -770,6 +806,10 @@ var _ = Describe("Client", func() {
 					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 					Expect(event.Provider).To(Equal("slack"))
 					Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+
+					val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+					Expect(val).ToNot(BeNil())
+					Expect(val.Val()).To(Equal("ok"))
 				})
 			})
 
@@ -836,6 +876,10 @@ var _ = Describe("Client", func() {
 					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 					Expect(event.Provider).To(Equal("slack"))
 					Expect(event.EventTimestamp).To(Equal("1358878755.000001"))
+
+					val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+					Expect(val).ToNot(BeNil())
+					Expect(val.Val()).To(Equal("ok"))
 				})
 			})
 
@@ -894,6 +938,10 @@ var _ = Describe("Client", func() {
 					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 					Expect(event.Provider).To(Equal("slack"))
 					Expect(event.EventTimestamp).To(Equal("1358878755.000001"))
+
+					val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+					Expect(val).ToNot(BeNil())
+					Expect(val.Val()).To(Equal("ok"))
 				})
 			})
 		})
@@ -951,6 +999,10 @@ var _ = Describe("Client", func() {
 				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 				Expect(event.Provider).To(Equal("slack"))
 				Expect(event.EventTimestamp).To(Equal("1360782804.083113"))
+
+				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal("ok"))
 			})
 		})
 
@@ -1007,6 +1059,10 @@ var _ = Describe("Client", func() {
 				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 				Expect(event.Provider).To(Equal("slack"))
 				Expect(event.EventTimestamp).To(Equal("1360782804.083113"))
+
+				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal("ok"))
 			})
 		})
 
@@ -1078,6 +1134,10 @@ var _ = Describe("Client", func() {
 
 				Expect(client.data.Users["U023BECGF"].Id).To(Equal("U023BECGF"))
 				Expect(client.data.Users["U023BECGF"].Name).To(Equal("bobby"))
+
+				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal("ok"))
 			})
 		})
 
@@ -1135,6 +1195,10 @@ var _ = Describe("Client", func() {
 				Expect(event.Provider).To(Equal("slack"))
 
 				Expect(client.data.Channels["D024BE91L"].Id).To(Equal("D024BE91L"))
+
+				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal("ok"))
 			})
 
 		})
