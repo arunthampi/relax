@@ -420,10 +420,12 @@ func (c *Client) handleMessage(msg *Message) {
 		// simple message
 		case "":
 			// Ignore Messages sent from the bot itself
-			msg.User = c.data.Users[userId]
-			msg.Channel = c.data.Channels[channelId]
+			if userId != c.data.Self.Id {
+				msg.User = c.data.Users[userId]
+				msg.Channel = c.data.Channels[channelId]
 
-			c.sendEvent("message_new", msg, msg.Text, msg.Timestamp, msg.Timestamp)
+				c.sendEvent("message_new", msg, msg.Text, msg.Timestamp, msg.Timestamp)
+			}
 		}
 
 	case "reaction_added":

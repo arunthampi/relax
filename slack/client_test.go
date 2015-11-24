@@ -813,6 +813,44 @@ var _ = Describe("Client", func() {
 				})
 			})
 
+			Context("message comes in from Slack and is from the bot itself", func() {
+				BeforeEach(func() {
+					wsServer = newWSServer(`
+						{
+							"type": "message",
+							"channel": "C2147483705",
+							"user": "UBOTUID",
+							"text": "Hey <@UBOTUID> Hello world",
+							"ts": "1355517523.000005"
+						}
+					`)
+
+					client.data = &Metadata{
+						Ok:       true,
+						Url:      makeWsProto(wsServer.URL),
+						Users:    map[string]User{},
+						Channels: map[string]Channel{},
+						Self:     User{Id: "UBOTUID"},
+					}
+					client.data.Channels["C2147483705"] = Channel{Id: "C2147483705", Im: false}
+					client.data.Users["U2147483697"] = User{Id: "U2147483697"}
+					client.TeamId = "TDEADBEEF"
+
+					client.Start()
+				})
+
+				AfterEach(func() {
+					wsServer.Close()
+				})
+
+				It("should NOT send an event to Redis", func() {
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
+					result := resultevent.Val()
+
+					Expect(len(result)).To(Equal(0))
+				})
+			})
+
 			Context("text message edited", func() {
 				BeforeEach(func() {
 					wsServer = newWSServer(`
