@@ -1,9 +1,16 @@
 #!/bin/bash
 
-VERSION=$(cat VERSION)
+if [ -z "$EQUINOX_BETA" ]; then
+  VERSION=$(git rev-parse --short HEAD)
+  CHANNEL=beta
+else
+  VERSION=$(cat VERSION)
+  CHANNEL=stable
+fi
 
 equinox release \
 --version=$VERSION \
+--channel=$CHANNEL \
 --platforms="darwin_amd64 linux_amd64" \
 --signing-key=$EQUINOX_SIGNING_KEY \
 --app=$EQUINOX_RELAX_APP_ID \

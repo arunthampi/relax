@@ -6,4 +6,4 @@ services:
 script: make test
 
 before_install:
-  - ./script/install_equinox.sh
+  - ./script/install_equinox
