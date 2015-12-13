@@ -4,3 +4,6 @@ go:
 services:
   - redis-server
 script: make test
+
+before_install:
+  - ./script/install_equinox.sh

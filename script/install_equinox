@@ -1,0 +1,6 @@
+#!/bin/bash
+
+wget https://bin.equinox.io/a/8TwdjKFdD2T/equinox-1.7.2-linux-amd64.tar.gz
+tar -zxvf equinox-1.7.2-linux-amd64.tar.gz
+sudo mv equinox /usr/local/bin/
+rm -f equinox-1.7.2-linux-amd64.tar.gz
