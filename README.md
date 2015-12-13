@@ -20,6 +20,8 @@ user, you can deploy Relax right away with one click.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
+You can also download pre-built binaries [here](#installation).
+
 **Known Issue:** When deploying using the "Deploy with Heroku" button,
 Heroku's Free Redis server takes a while to boot up, so your Relax
 deployment will take a while to come up as well. You can see Relax
@@ -35,15 +37,13 @@ trying to connect to Heroku's Redis server by tailing logs `heroku logs
 
 ## Installation
 
-The simplest way to install Relax is to run
+If you're not a Go user, fear not, Relax does not require any knowledge
+of Go. You can download the latest stable version of relax
+[here](https://dl.equinox.io/zerobotlabs/relax/stable).
 
-```go
-go get github.com/zerobotlabs/relax
-```
-
-Pre-built binaries for different platforms is coming soon.
-
-Relax has been tested with Go1.4.
+Binaries are available for both OS X and Linux. Untar and gunzip the
+downloaded file and move the `relax` binary to your `$PATH` to start
+using.
 
 ## Running Relax
 
