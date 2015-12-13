@@ -1,0 +1,11 @@
+#!/bin/bash
+
+VERSION=$(cat VERSION)
+
+equinox release \
+--version=$VERSION \
+--platforms="darwin_amd64 linux_amd64" \
+--signing-key=$EQUINOX_SIGNING_KEY \
+--app=$EQUINOX_RELAX_APP_ID \
+--token=$EQUINOX_CREDENTIAL \
+github.com/zerobotlabs/relax

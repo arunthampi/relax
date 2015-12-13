@@ -19,4 +19,7 @@ run: build
 test:
 	@script/test
 
+release:
+	@script/release
+
 .PHONY: all build run test
