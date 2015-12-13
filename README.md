@@ -1,6 +1,6 @@
 ## Relax
 
-Relax is a Go-based Message Broker for Slack Bots. What does that mean?
+Relax is a Message Broker for Slack Bots. What does that mean?
 If you are running a "bot-as-a-service" for Slack, you have to maintain
 hundreds (if not thousands) of websocket connections and handle the
 deluge of events from all these connections.
@@ -15,12 +15,12 @@ any web app can communicate with Relax.
 If you are a Rails app however, there is a nifty [Ruby
 client](https://github.com/zerobotlabs/relax-rb) for you to use.
 
-**No knowledge of Go is required to run Relax**. In fact, if you are a Heroku
-user, you can deploy Relax right away with one click.
+You can also download pre-built binaries [here](#installation).
+
+If you are a Heroku user, you can deploy Relax right away with one click.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
-You can also download pre-built binaries [here](#installation).
 
 **Known Issue:** When deploying using the "Deploy with Heroku" button,
 Heroku's Free Redis server takes a while to boot up, so your Relax
@@ -37,7 +37,7 @@ trying to connect to Heroku's Redis server by tailing logs `heroku logs
 
 ## Installation
 
-If you're not a Go user, fear not, Relax does not require any knowledge
+Although Relax is written in Go, it does not require any knowledge
 of Go. You can download the latest stable version of relax
 [here](https://dl.equinox.io/zerobotlabs/relax/stable).
 
@@ -47,7 +47,7 @@ using.
 
 ## Running Relax
 
-To run it, basically run `relax` (assuming `$GOPATH/bin` is in your $PATH).
+To run it, basically run `relax` (assuming it is in your $PATH).
 
 `RELAX_BOTS_KEY=relax_bots_key RELAX_BOTS_PUBSUB=relax_bots_pubsub RELAX_EVENTS_QUEUE=relax_events_queue REDIS_HOST=localhost:6379 relax`
 
