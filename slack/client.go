@@ -120,7 +120,7 @@ func (c *Client) Login() error {
 }
 
 // Start starts a websocket connection to Slack's servers and starts listening for messages
-// If it detects an "invalid_auth" message, it means that the token provided by the user
+// If it detects an "invalid_auth" or "inactive_account" message, it means that the token provided by the user
 // has expired or is incorrect and so it sends a "disable_bot" event back to the user
 // so that they can take remedial action.
 func (c *Client) Start() error {
@@ -144,7 +144,8 @@ func (c *Client) Start() error {
 	} else {
 		// Bot has been disabled by the user,
 		// so we need to mark it as disabled
-		if c.data.Error == "invalid_auth" {
+		if c.data.Error == "invalid_auth" ||
+			c.data.Error == "account_inactive" {
 			var msg Message
 			msg.User = User{}
 			msg.Channel = Channel{}

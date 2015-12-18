@@ -575,6 +575,32 @@ var _ = Describe("Client", func() {
 				})
 			})
 
+			Context("when error is set to account_inactive", func() {
+				BeforeEach(func() {
+					client.data.Error = "account_inactive"
+				})
+
+				It("should return an error and send a response via Redis", func() {
+					var event Event
+
+					err = client.Start()
+					Expect(err).ToNot(BeNil())
+
+					redisClient := newRedisClient()
+
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
+					result := resultevent.Val()
+
+					Expect(len(result)).To(Equal(2))
+					err := json.Unmarshal([]byte(result[1]), &event)
+					Expect(err).To(BeNil())
+
+					Expect(event.Type).To(Equal("disable_bot"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
+				})
+			})
+
 			Context("when there is another error", func() {
 				It("should return an error", func() {
 					err = client.Start()
