@@ -640,7 +640,7 @@ var _ = Describe("Client", func() {
 				setRedisQueueWebEnv()
 			})
 
-			Context("message comes in from Slack when the user/channel don't exist in the map", func() {
+			Context("message comes in from Slack and is not meant for Nestor", func() {
 				BeforeEach(func() {
 					wsServer = newWSServer(`
 						{
@@ -652,7 +652,16 @@ var _ = Describe("Client", func() {
 						}
 					`)
 
-					client.data = &Metadata{Ok: true, Url: makeWsProto(wsServer.URL)}
+					client.data = &Metadata{
+						Ok:       true,
+						Url:      makeWsProto(wsServer.URL),
+						Users:    map[string]User{},
+						Channels: map[string]Channel{},
+						Self:     User{Id: "UBOTUID"},
+					}
+					client.data.Channels["C2147483705"] = Channel{Id: "C2147483705", Im: false}
+					client.data.Users["U2147483697"] = User{Id: "U2147483697"}
+					client.TeamId = "TDEADBEEF"
 					client.Start()
 				})
 
@@ -660,11 +669,30 @@ var _ = Describe("Client", func() {
 					wsServer.Close()
 				})
 
-				It("should not send an event to Redis", func() {
+				It("should send an event to Redis", func() {
+					var event Event
+
 					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
 					result := resultevent.Val()
 
-					Expect(len(result)).To(Equal(0))
+					Expect(len(result)).To(Equal(2))
+					err := json.Unmarshal([]byte(result[1]), &event)
+					Expect(err).To(BeNil())
+
+					Expect(event.Type).To(Equal("message_new"))
+					Expect(event.ChannelUid).To(Equal("C2147483705"))
+					Expect(event.UserUid).To(Equal("U2147483697"))
+					Expect(event.Text).To(Equal("Hello world"))
+					Expect(event.Timestamp).To(Equal("1355517523.000005"))
+					Expect(event.Im).To(BeFalse())
+					Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
+					Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+
+					val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+					Expect(val).ToNot(BeNil())
+					Expect(val.Val()).To(Equal("ok"))
 				})
 			})
 
