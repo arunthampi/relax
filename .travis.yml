@@ -5,8 +5,6 @@ services:
   - redis-server
 script: make test
 
-before_install:
-  - make install_equinox
-
 after_success:
+  - make install_equinox
   - make release
