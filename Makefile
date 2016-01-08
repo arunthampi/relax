@@ -22,4 +22,7 @@ test:
 release:
 	@script/release
 
-.PHONY: all build run test
+install_equinox:
+	@script/install_equinox
+
+.PHONY: all build run test release install_equinox

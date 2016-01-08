@@ -6,4 +6,7 @@ services:
 script: make test
 
 before_install:
-  - ./script/install_equinox
+  - make install_equinox
+
+after_success:
+  - make release

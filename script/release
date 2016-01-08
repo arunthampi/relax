@@ -8,11 +8,21 @@ else
   CHANNEL=stable
 fi
 
-equinox release \
---version=$VERSION \
---channel=$CHANNEL \
---platforms="darwin_amd64 linux_amd64" \
---signing-key=$EQUINOX_SIGNING_KEY \
---app=$EQUINOX_RELAX_APP_ID \
---token=$EQUINOX_CREDENTIAL \
-github.com/zerobotlabs/relax
+if [ -z "$EQUINOX_SIGNING_KEY" ]; then
+	equinox release \
+	--version=$VERSION \
+	--channel=$CHANNEL \
+	--platforms="darwin_amd64 linux_amd64" \
+	--app=$EQUINOX_RELAX_APP_ID \
+	--token=$EQUINOX_CREDENTIAL \
+	github.com/zerobotlabs/relax
+else
+	equinox release \
+	--version=$VERSION \
+	--channel=$CHANNEL \
+	--platforms="darwin_amd64 linux_amd64" \
+	--signing-key=$EQUINOX_SIGNING_KEY_FILE \
+	--app=$EQUINOX_RELAX_APP_ID \
+	--token=$EQUINOX_CREDENTIAL \
+	github.com/zerobotlabs/relax
+fi
