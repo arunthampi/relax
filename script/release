@@ -9,7 +9,7 @@ else
 fi
 
 if [ -z "$EQUINOX_SIGNING_KEY" ]; then
-	equinox release \
+	/usr/local/bin/equinox release \
 	--version=$VERSION \
 	--channel=$CHANNEL \
 	--platforms="darwin_amd64 linux_amd64" \
@@ -17,7 +17,7 @@ if [ -z "$EQUINOX_SIGNING_KEY" ]; then
 	--token=$EQUINOX_CREDENTIAL \
 	github.com/zerobotlabs/relax
 else
-	equinox release \
+	/usr/local/bin/equinox release \
 	--version=$VERSION \
 	--channel=$CHANNEL \
 	--platforms="darwin_amd64 linux_amd64" \

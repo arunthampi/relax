@@ -2,5 +2,5 @@
 
 wget https://bin.equinox.io/a/dEYh7AJnr8F/equinox-1.8.4-linux-amd64.tar.gz
 tar -zxvf equinox-1.8.4-linux-amd64.tar.gz
-sudo mv equinox /usr/local/bin/
+mv equinox /usr/local/bin/
 rm -f equinox-1.8.4-linux-amd64.tar.gz
