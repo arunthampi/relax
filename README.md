@@ -45,6 +45,10 @@ Binaries are available for both OS X and Linux. Untar and gunzip the
 downloaded file and move the `relax` binary to your `$PATH` to start
 using.
 
+## In Production Use
+
+Relax is used in production to power [Nestor](https://www.asknestor.me).
+
 ## Running Relax
 
 To run it, basically run `relax` (assuming it is in your $PATH).
