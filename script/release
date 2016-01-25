@@ -14,6 +14,6 @@ echo "Installing $VERSION to $CHANNEL with EQUINOX_SIGNING_KEY_FILE"
 --channel=$CHANNEL \
 --platforms="darwin_amd64 linux_amd64" \
 --signing-key=$EQUINOX_SIGNING_KEY_FILE \
---app=$EQUINOX_RELAX_APP_ID \
+--app=$EQUINOX_APP_ID \
 --token=$EQUINOX_CREDENTIAL \
 github.com/zerobotlabs/relax
