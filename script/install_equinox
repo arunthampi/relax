@@ -1,6 +1,18 @@
 #!/bin/bash
+platform='unknown'
+unamestr=`uname`
+url=""
+file=""
 
-wget https://bin.equinox.io/a/dEYh7AJnr8F/equinox-1.8.4-linux-amd64.tar.gz
-tar -zxvf equinox-1.8.4-linux-amd64.tar.gz
+if [[ "$unamestr" == "Darwin" ]]; then
+  url="https://bin.equinox.io/a/4QtkiQTijTt/equinox-1.8.4-darwin-amd64.tar.gz"
+  file="equinox-1.8.4-darwin-amd64.tar.gz"
+elif [[ "$unamestr" == "Linux" ]]; then
+  url="https://bin.equinox.io/a/dEYh7AJnr8F/equinox-1.8.4-linux-amd64.tar.gz"
+  file="equinox-1.8.4-linux-amd64.tar.gz"
+fi
+
+wget $url
+tar -zxvf $file
 sudo mv equinox /usr/local/bin/
-rm -f equinox-1.8.4-linux-amd64.tar.gz
+rm -f $file
