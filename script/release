@@ -1,14 +1,15 @@
 #!/bin/bash
 
 if [ -z "$EQUINOX_BETA" ]; then
-  VERSION=$(git rev-parse --short HEAD)
-  CHANNEL=beta
-else
   VERSION=$(cat VERSION)
   CHANNEL=stable
+else
+  VERSION=$(git rev-parse --short HEAD)
+  CHANNEL=beta
 fi
 
 if [ -z "$EQUINOX_SIGNING_KEY" ]; then
+	echo "Installing $VERSION to $CHANNEL with EQUINOX_SIGNING_KEY"
 	/usr/local/bin/equinox release \
 	--version=$VERSION \
 	--channel=$CHANNEL \
@@ -17,6 +18,7 @@ if [ -z "$EQUINOX_SIGNING_KEY" ]; then
 	--token=$EQUINOX_CREDENTIAL \
 	github.com/zerobotlabs/relax
 else
+	echo "Installing $VERSION to $CHANNEL with EQUINOX_SIGNING_KEY_FILE"
 	/usr/local/bin/equinox release \
 	--version=$VERSION \
 	--channel=$CHANNEL \
