@@ -314,6 +314,18 @@ func startReadFromRedisPubSubLoop() {
 				}
 
 				switch cmd.Type {
+				case "message":
+
+					if cmd.TeamId == "" {
+						break
+					}
+
+					c := Clients[cmd.TeamId]
+					if c == nil {
+						break
+					}
+
+					c.conn.WriteMessage(websocket.TextMessage, []byte(cmd.Payload))
 				case "team_added":
 					if cmd.TeamId == "" {
 						break
