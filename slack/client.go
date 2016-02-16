@@ -393,6 +393,7 @@ func (c *Client) startReadFromSlackLoop() {
 // event is sent back to the user via a redis queue
 func (c *Client) handleMessage(msg *Message) {
 	switch msg.Type {
+
 	case "message":
 		userId := msg.UserId()
 		channelId := msg.ChannelId()
@@ -462,6 +463,19 @@ func (c *Client) handleMessage(msg *Message) {
 			msg.User = c.data.Users[msg.UserId()]
 
 			c.sendEvent("im_created", msg, "", "", "")
+		}
+
+	case "channel_joined":
+		var channel Channel
+
+		err := json.Unmarshal(msg.RawChannel, &channel)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Error("error parsing channel from channel_joined")
+		} else {
+			c.data.Channels[channel.Id] = channel
+			c.sendEvent("channel_joined", msg, "", "", "")
 		}
 	}
 }
