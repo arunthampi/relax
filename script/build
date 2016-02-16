@@ -9,5 +9,4 @@ rm -f "$BUILD_DIR/$APP"
 mkdir -p "$BUILD_DIR"
 # install only the binary
 # this prevents go from looking at test-only directory
-VERSION=$VERSION godep go install -x -ldflags "-X main.version ${VERSION}"
-BUILD_DIR=$BUILD_DIR bash -c 'cp $GOBIN/$APP $BUILD_DIR/$APP'
+go build -ldflags "-X main.version=${VERSION}"  -x -v -o $BUILD_DIR/$APP github.com/zerobotlabs/relax
