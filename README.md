@@ -123,7 +123,7 @@ Type               | What it does
 `message_deleted`  | This event is sent when a message has been deleted.
 `reaction_added`   | This event is sent when a reaction has been added to a message.
 `reaction_removed` | This event is sent when a reaction has been removed from a message.
-`team_join`        | This event is sent when a new member has been added to the team. The best practice upon receiving this event is to refresh the team database and make sure that information on all members of the team is up to date.
+`team_joined`      | This event is sent when a new member has been added to the team. The best practice upon receiving this event is to refresh the team database and make sure that information on all members of the team is up to date.
 `im_created`       | This event is sent when a new direct message has been opened with the bot. This can be ignored in most cases as it is used by Relax to keep internal metadata in sync.
 
 ### user_uid
@@ -153,7 +153,7 @@ Type               | What "text" field means
 `message_deleted`  | The original message text
 `reaction_added`   | Reaction added to a message. This contains the text representation of a reaction, for e.g. `:simple_smiley:`
 `reaction_removed` | Reaction removed from a message. This contain the text representation of a reaction, for e.g. `:simple_smiley:`
-`team_join`        | Since there is no text metadata associated with this event, it is always blank.
+`team_joined`      | Since there is no text metadata associated with this event, it is always blank.
 `im_created`       | Since there is no text metadata associated with this event, it is always blank.
 
 ### relax_bot_uid
@@ -176,7 +176,7 @@ Type               | What "timestamp" field means
 `message_deleted`  | Timestamp of the message that has been deleted. Upon receiving a "message_changed" event, you can use "channel_uid" and "timestamp" to identify the message that has been deleted and delete that message accordingly
 `reaction_added`   | Timestamp of the message for which a reaction has been added. Upon receiving a "reaction_added" event, you can use "channel_uid" and "timestamp" to identify the message for which a reaction has been added and change the metadata for that message accordingly
 `reaction_removed` | Timestamp of the message for which a reaction has been removed. Upon receiving a "reaction_removed" event, you can use "channel_uid" and "timestamp" to identify the message for which a reaction has been removed and change the metadata for that message accordingly
-`team_join`        | Empty string
+`team_joined`      | Empty string
 `im_created`       | Empty string
 
 ### provider
@@ -187,5 +187,5 @@ this is always "slack".
 ### event_timestamp
 
 This is a string value and represents the time at which an event occurs.
-In the case of `disable_bot`, `team_join` and `im_created` events, it is
+In the case of `disable_bot`, `team_joined` and `im_created` events, it is
 an empty string.
