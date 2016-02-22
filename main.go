@@ -19,6 +19,10 @@ func main() {
 		panic(err)
 	}
 
+	if redisCloudUrl := os.Getenv("REDISCLOUD_URL"); redisCloudUrl != "" {
+		os.Setenv("REDIS_URL", redisCloudUrl)
+	}
+
 	if os.Getenv("RELAX_BOTS_KEY") == "" || os.Getenv("RELAX_BOTS_PUBSUB") == "" ||
 		os.Getenv("RELAX_EVENTS_QUEUE") == "" || os.Getenv("REDIS_URL") == "" ||
 		os.Getenv("RELAX_MUTEX_KEY") == "" {
