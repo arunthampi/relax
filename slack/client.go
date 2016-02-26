@@ -314,6 +314,41 @@ func startReadFromRedisPubSubLoop() {
 				}
 
 				switch cmd.Type {
+				case "message":
+					shouldSend := true
+
+					if cmd.TeamId == "" {
+						break
+					}
+					// if Id is not present, then populate an ID
+					if cmd.Id == "" {
+						cmd.Id = fmt.Sprintf("%d", time.Now().Nanosecond())
+					}
+					c := Clients[cmd.TeamId]
+					fmt.Printf("client: %+v\n", c)
+
+					if c != nil {
+						key := fmt.Sprintf("send_slack_message:%s", cmd.Id)
+						boolCmd := redisClient.HSetNX(os.Getenv("RELAX_MUTEX_KEY"), key, "ok")
+
+						if boolCmd != nil {
+							shouldSend = boolCmd.Val()
+						}
+
+						if shouldSend {
+							c.conn.WriteMessage(websocket.TextMessage, []byte(cmd.Payload))
+							log.WithFields(log.Fields{
+								"team":       cmd.TeamId,
+								"command_id": cmd.Id,
+							}).Debug("sent message to slack")
+						} else {
+							log.WithFields(log.Fields{
+								"team":       cmd.TeamId,
+								"command_id": cmd.Id,
+							}).Debug("ignoring, not sending message to slack")
+						}
+					}
+
 				case "team_added":
 					if cmd.TeamId == "" {
 						break

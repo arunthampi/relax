@@ -36,6 +36,34 @@ func setRedisQueueWebEnv() {
 	os.Setenv("RELAX_EVENTS_QUEUE", fmt.Sprintf("redis_key_queue_web_%d", now.Nanosecond()))
 }
 
+func newWSListenerServer(c chan<- []byte) *httptest.Server {
+	wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			http.Error(w, "method not allowed", 405)
+			return
+		}
+
+		var upgrader websocket.Upgrader
+
+		ws, err := upgrader.Upgrade(w, r, http.Header{})
+		if err != nil {
+			return
+		}
+		defer ws.Close()
+
+		for {
+			_, msg, err := ws.ReadMessage()
+			if err != nil {
+				continue
+			}
+
+			c <- []byte(string(msg) + " returned")
+		}
+	}))
+
+	return wsServer
+}
+
 func newWSServer(wsResponse string) *httptest.Server {
 	wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
@@ -85,7 +113,179 @@ var _ = Describe("Client", func() {
 		Clients = map[string]*Client{}
 	})
 
-	Describe("InitClients", func() {
+	Describe("InitClient - message event", func() {
+		var server *httptest.Server
+		var existingSlackHost string
+		var wsServer *httptest.Server
+		var receiverChan chan []byte
+		var client *Client
+		var err error
+
+		BeforeEach(func() {
+			setRedisQueueWebEnv()
+			receiverChan = make(chan []byte)
+
+			wsServer = newWSListenerServer(receiverChan)
+			server = newTestServer(fmt.Sprintf(`
+{
+		"ok": true,
+		"url": "%s",
+		"self": {
+			"id": "URELAXBOT",
+			"name": "bot",
+			"created": 1402463766,
+			"manual_presence": "active"
+		},
+		"team": {
+			"id": "TDEADBEEF",
+			"name": "Example Team",
+			"email_domain": "",
+			"domain": "example",
+			"msg_edit_window_mins": -1,
+			"over_storage_limit": false,
+			"plan": "std"
+		},
+		"users": [
+			{
+				"id": "U023BECGF",
+				"name": "bobby",
+				"deleted": false,
+				"color": "9f69e7",
+				"profile": {
+						"first_name": "Bobby",
+						"last_name": "Tables",
+						"real_name": "Bobby Tables",
+						"email": "bobby@slack.com",
+						"skype": "my-skype-name",
+						"phone": "+1 (123) 456 7890",
+						"image_24": "https://...",
+						"image_32": "https://...",
+						"image_48": "https://...",
+						"image_72": "https://...",
+						"image_192": "https://..."
+				},
+				"is_admin": true,
+				"is_owner": true,
+				"has_2fa": false,
+				"has_files": true
+			}
+		],
+		"channels": [
+			{
+				"id": "C024BE91L",
+				"name": "fun",
+				"created": 1360782804,
+				"creator": "U024BE7LH",
+				"is_archived": false,
+				"is_member": false,
+				"num_members": 6,
+				"topic": {
+						"value": "Fun times",
+						"creator": "U024BE7LV",
+						"last_set": 1369677212
+				},
+				"purpose": {
+						"value": "This channel is for fun",
+						"creator": "U024BE7LH",
+						"last_set": 1360782804
+				}
+			}
+    ]
+}
+`, makeWsProto(wsServer.URL)), 200)
+			existingSlackHost = os.Getenv("SLACK_HOST")
+			os.Setenv("SLACK_HOST", server.URL)
+			os.Setenv("RELAX_BOTS_KEY", "relax_redis_key")
+			os.Setenv("RELAX_BOTS_PUBSUB", "redis_pubsub_relax")
+
+			rc.HSet(os.Getenv("RELAX_BOTS_KEY"), "TDEADBEEF", `{
+				"token": "xoxo_deadbeef",
+				"team_id": "TDEADBEEF",
+				"provider": "slack"
+			}`)
+
+			InitClients()
+			client, err = NewClient("{\"team_id\":\"TDEADBEEF\",\"bot_token\":\"xoxo_deadbeef\"}")
+			Expect(err).To(BeNil())
+
+			client.data = &Metadata{
+				Ok:       true,
+				Url:      makeWsProto(wsServer.URL),
+				Users:    map[string]User{},
+				Channels: map[string]Channel{},
+				Self:     User{Id: "UBOTUID"},
+			}
+
+			client.Start()
+		})
+
+		Context("message has not already been sent (redis mutex key has not been set)", func() {
+			It("should send a message to Slack", func() {
+				message := ""
+
+				// The listener might not be ready yet, so let's loop until we do
+				intCmd := rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"message","team_id":"TDEADBEEF","id":"CAFEDEAD1","payload":"message to slack"}`)
+				for intCmd == nil || intCmd.Val() == 0 {
+					intCmd = rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"message","team_id":"TDEADBEEF","id":"CAFEDEAD1","payload":"message to slack"}`)
+					time.Sleep(500 * time.Millisecond)
+				}
+
+				Expect(intCmd).ToNot(BeNil())
+
+				timeout := make(chan bool, 1)
+				go func() {
+					time.Sleep(5 * time.Second)
+					timeout <- true
+				}()
+
+				select {
+				case msg := <-receiverChan:
+					message = string(msg)
+				case <-timeout:
+				}
+
+				Expect(message).To(Equal("message to slack returned"))
+				val := rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "send_slack_message:CAFEDEAD1")
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal("ok"))
+			})
+		})
+
+		Context("message has already been sent (redis mutex key has been set)", func() {
+			It("should send a message to Slack", func() {
+				message := ""
+
+				val := rc.HSet(os.Getenv("RELAX_MUTEX_KEY"), "send_slack_message:CAFEDEAD1", "ok")
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal(true))
+
+				// The listener might not be ready yet, so let's loop until we do
+				intCmd := rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"message","team_id":"TDEADBEEF","id":"CAFEDEAD1","payload":"message to slack"}`)
+				for intCmd == nil || intCmd.Val() == 0 {
+					intCmd = rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"message","team_id":"TDEADBEEF","id":"CAFEDEAD1","payload":"message to slack"}`)
+					time.Sleep(500 * time.Millisecond)
+				}
+
+				Expect(intCmd).ToNot(BeNil())
+
+				timeout := make(chan bool, 1)
+				go func() {
+					time.Sleep(2 * time.Second)
+					timeout <- true
+				}()
+
+				select {
+				case msg := <-receiverChan:
+					message = string(msg)
+				case <-timeout:
+				}
+
+				Expect(message).To(Equal(""))
+			})
+		})
+	})
+
+	Describe("InitClients - team_added event", func() {
 		var server *httptest.Server
 		var existingSlackHost string
 		var wsServer *httptest.Server
@@ -294,6 +494,7 @@ var _ = Describe("Client", func() {
 				Expect(val.Val()).To(Equal("ok"))
 			})
 		})
+
 	})
 
 	Describe("NewClient", func() {

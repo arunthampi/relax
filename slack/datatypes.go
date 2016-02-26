@@ -19,6 +19,7 @@ type Channel struct {
 }
 
 type Command struct {
+	Id        string `json:"id"`
 	Type      string `json:"type"`
 	TeamId    string `json:"team_id"`
 	UserId    string `json:"user_id"`
