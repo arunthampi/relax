@@ -3,9 +3,11 @@ language: go
 go:
 - 1.5
 services:
-  - redis-server
+- redis-server
 script: make test
-
 after_success:
-  - make install_equinox
-  - make release
+- make install_equinox
+- make release
+before_install:
+- openssl aes-256-cbc -K $encrypted_d50a3592a6ce_key -iv $encrypted_d50a3592a6ce_iv
+  -in equinox.key.enc -out script/equinox.key -d
