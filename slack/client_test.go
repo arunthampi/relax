@@ -110,7 +110,6 @@ var _ = Describe("Client", func() {
 
 		rc = newRedisClient()
 		rc.FlushDb()
-		Clients = map[string]*Client{}
 	})
 
 	Describe("InitClient - message event", func() {
@@ -118,8 +117,6 @@ var _ = Describe("Client", func() {
 		var existingSlackHost string
 		var wsServer *httptest.Server
 		var receiverChan chan []byte
-		var client *Client
-		var err error
 
 		BeforeEach(func() {
 			setRedisQueueWebEnv()
@@ -205,23 +202,23 @@ var _ = Describe("Client", func() {
 			}`)
 
 			InitClients()
-			client, err = NewClient("{\"team_id\":\"TDEADBEEF\",\"bot_token\":\"xoxo_deadbeef\"}")
-			Expect(err).To(BeNil())
+		})
 
-			client.data = &Metadata{
-				Ok:       true,
-				Url:      makeWsProto(wsServer.URL),
-				Users:    map[string]User{},
-				Channels: map[string]Channel{},
-				Self:     User{Id: "UBOTUID"},
-			}
-
-			client.Start()
+		AfterEach(func() {
+			server.Close()
+			wsServer.Close()
 		})
 
 		Context("message has not already been sent (redis mutex key has not been set)", func() {
 			It("should send a message to Slack", func() {
 				message := ""
+
+				// Wait until the client has been initialized
+				result := rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "bot-TDEADBEEF-started")
+				for result == nil || result.Val() == "" {
+					result = rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "bot-TDEADBEEF-started")
+					time.Sleep(500 * time.Millisecond)
+				}
 
 				// The listener might not be ready yet, so let's loop until we do
 				intCmd := rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"message","team_id":"TDEADBEEF","id":"CAFEDEAD1","payload":"message to slack"}`)
@@ -234,7 +231,7 @@ var _ = Describe("Client", func() {
 
 				timeout := make(chan bool, 1)
 				go func() {
-					time.Sleep(5 * time.Second)
+					time.Sleep(2 * time.Second)
 					timeout <- true
 				}()
 
@@ -254,6 +251,13 @@ var _ = Describe("Client", func() {
 		Context("message has already been sent (redis mutex key has been set)", func() {
 			It("should send a message to Slack", func() {
 				message := ""
+
+				// Wait until the client has been initialized
+				result := rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "bot-TDEADBEEF-started")
+				for result == nil || result.Val() == "" {
+					result = rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "bot-TDEADBEEF-started")
+					time.Sleep(500 * time.Millisecond)
+				}
 
 				val := rc.HSet(os.Getenv("RELAX_MUTEX_KEY"), "send_slack_message:CAFEDEAD1", "ok")
 				Expect(val).ToNot(BeNil())
