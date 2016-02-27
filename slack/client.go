@@ -327,7 +327,7 @@ func startReadFromRedisPubSubLoop() {
 					c := Clients[cmd.TeamId]
 					fmt.Printf("client: %+v\n", c)
 
-					if c != nil {
+					if c != nil && c.conn != nil {
 						key := fmt.Sprintf("send_slack_message:%s", cmd.Id)
 						boolCmd := redisClient.HSetNX(os.Getenv("RELAX_MUTEX_KEY"), key, "ok")
 
