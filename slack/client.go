@@ -58,19 +58,18 @@ func InitClients() {
 	result := resultCmd.Val()
 
 	for i := 0; i < len(result); i += 2 {
-		key := result[i]
+		teamId := result[i]
 		val := result[i+1]
 
 		c, err := NewClient(val)
 
 		if err != nil {
 			log.WithFields(log.Fields{
-				"team":  val,
+				"team":  teamId,
 				"error": err,
 			}).Error("starting slack client")
 		} else {
 			go c.LoginAndStart()
-			Clients[key] = c
 		}
 	}
 
@@ -163,6 +162,17 @@ func (c *Client) Start() error {
 
 		return fmt.Errorf(fmt.Sprintf("error connecting to slack websocket server: %s", c.data.Error))
 	}
+
+	// This serves no real purpose other than to let tests know that a certain client has been initialized
+	val := c.redisClient.HSet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot-%s-started", c.TeamId), fmt.Sprintf("%d", time.Now().Nanosecond()))
+	if val == nil || val.Val() != true {
+		log.WithFields(log.Fields{
+			"team":  c.TeamId,
+			"error": fmt.Sprintf("could not set bot-%s-started in RELAX_MUTEX_KEY", c.TeamId),
+		}).Error("starting slack client")
+	}
+
+	Clients[c.TeamId] = c
 
 	return nil
 }
@@ -314,6 +324,40 @@ func startReadFromRedisPubSubLoop() {
 				}
 
 				switch cmd.Type {
+				case "message":
+					shouldSend := true
+
+					if cmd.TeamId == "" {
+						break
+					}
+					// if Id is not present, then populate an ID
+					if cmd.Id == "" {
+						cmd.Id = fmt.Sprintf("%d", time.Now().Nanosecond())
+					}
+					c := Clients[cmd.TeamId]
+
+					if c != nil && c.conn != nil {
+						key := fmt.Sprintf("send_slack_message:%s", cmd.Id)
+						boolCmd := redisClient.HSetNX(os.Getenv("RELAX_MUTEX_KEY"), key, "ok")
+
+						if boolCmd != nil {
+							shouldSend = boolCmd.Val()
+						}
+
+						if shouldSend {
+							c.conn.WriteMessage(websocket.TextMessage, []byte(cmd.Payload))
+							log.WithFields(log.Fields{
+								"team":       cmd.TeamId,
+								"command_id": cmd.Id,
+							}).Debug("sent message to slack")
+						} else {
+							log.WithFields(log.Fields{
+								"team":       cmd.TeamId,
+								"command_id": cmd.Id,
+							}).Debug("ignoring, not sending message to slack")
+						}
+					}
+
 				case "team_added":
 					if cmd.TeamId == "" {
 						break
@@ -338,7 +382,6 @@ func startReadFromRedisPubSubLoop() {
 					c, err := NewClient(val)
 					if err == nil {
 						c.LoginAndStart()
-						Clients[cmd.TeamId] = c
 					} else {
 						log.WithFields(log.Fields{
 							"team":  cmd.TeamId,
