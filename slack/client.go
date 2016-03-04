@@ -518,6 +518,7 @@ func (c *Client) handleMessage(msg *Message) {
 			}).Error("error parsing channel from channel_joined")
 		} else {
 			c.data.Channels[channel.Id] = channel
+			msg.Channel = channel
 			c.sendEvent("channel_joined", msg, "", "", "")
 		}
 	}
