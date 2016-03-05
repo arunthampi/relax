@@ -519,7 +519,9 @@ func (c *Client) handleMessage(msg *Message) {
 		} else {
 			c.data.Channels[channel.Id] = channel
 			msg.Channel = channel
-			c.sendEvent("channel_joined", msg, "", "", "")
+			// Don't send channel joined messages for upto a minute
+			timestamp := fmt.Sprintf("channel-joined-%d-%s", (time.Now().Unix()/60)*60, channel.Id)
+			c.sendEvent("channel_joined", msg, "", timestamp, "")
 		}
 	}
 }
