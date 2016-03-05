@@ -1570,6 +1570,8 @@ var _ = Describe("Client", func() {
 				Expect(err).To(BeNil())
 				Expect(event.Type).To(Equal("channel_joined"))
 				Expect(event.ChannelUid).To(Equal("C0MF94DFZ"))
+				Expect(event.Timestamp).ToNot(Equal(""))
+				Expect(event.EventTimestamp).ToNot(Equal(""))
 				Expect(event.Text).To(Equal(""))
 				Expect(event.Im).To(BeFalse())
 				Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
