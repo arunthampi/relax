@@ -222,7 +222,7 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 	// If the eventTimestamp blank, then set a timestamp to the currentTime (this typically means)
 	// that it is the responsibility of the client to make sure that events are handled idempotently
 	if eventTimestamp == "" {
-		eventTimestamp = fmt.Sprintf("%d", time.Now().Nanosecond())
+		eventTimestamp = fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 
 	event := &Event{
