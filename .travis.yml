@@ -6,6 +6,9 @@ services:
   - redis-server
 script: make test
 
+before_install:
+  - openssl aes-256-cbc -K $encrypted_3eddc43c9adb_key -iv $encrypted_3eddc43c9adb_iv -in script/equinox.key.enc -out script/equinox.key -d
+
 after_success:
   - make install_equinox
   - make release
