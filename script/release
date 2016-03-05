@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export EQUINOX_APP_ID=app_6dd9kcb4hZ1
+
 if [ -z "$EQUINOX_BETA" ]; then
   VERSION=$(cat VERSION)
   CHANNEL=stable
