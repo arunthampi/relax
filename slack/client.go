@@ -465,6 +465,13 @@ func (c *Client) handleMessage(msg *Message) {
 				msg.User = c.data.Users[userId]
 				msg.Channel = c.data.Channels[channelId]
 
+				log.WithFields(log.Fields{
+					"userId":      userId,
+					"channelId":   channelId,
+					"msg.User":    msg.User,
+					"msg.Channel": msg.Channel,
+				}).Info("Sending message_new for this user and channel")
+
 				c.sendEvent("message_new", msg, msg.Text, msg.Timestamp, msg.Timestamp)
 			}
 		}
