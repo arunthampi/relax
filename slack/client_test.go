@@ -125,69 +125,97 @@ var _ = Describe("Client", func() {
 			wsServer = newWSListenerServer(receiverChan)
 			server = newTestServer(fmt.Sprintf(`
 {
-		"ok": true,
-		"url": "%s",
-		"self": {
-			"id": "URELAXBOT",
-			"name": "bot",
-			"created": 1402463766,
-			"manual_presence": "active"
-		},
-		"team": {
-			"id": "TDEADBEEF",
-			"name": "Example Team",
-			"email_domain": "",
-			"domain": "example",
-			"msg_edit_window_mins": -1,
-			"over_storage_limit": false,
-			"plan": "std"
-		},
-		"users": [
-			{
-				"id": "U023BECGF",
-				"name": "bobby",
-				"deleted": false,
-				"color": "9f69e7",
-				"profile": {
-						"first_name": "Bobby",
-						"last_name": "Tables",
-						"real_name": "Bobby Tables",
-						"email": "bobby@slack.com",
-						"skype": "my-skype-name",
-						"phone": "+1 (123) 456 7890",
-						"image_24": "https://...",
-						"image_32": "https://...",
-						"image_48": "https://...",
-						"image_72": "https://...",
-						"image_192": "https://..."
-				},
-				"is_admin": true,
-				"is_owner": true,
-				"has_2fa": false,
-				"has_files": true
+	"ok": true,
+	"url": "%s",
+	"self": {
+		"id": "URELAXBOT",
+		"name": "bot",
+		"created": 1402463766,
+		"manual_presence": "active"
+	},
+	"team": {
+		"id": "TDEADBEEF",
+		"name": "Example Team",
+		"email_domain": "",
+		"domain": "example",
+		"msg_edit_window_mins": -1,
+		"over_storage_limit": false,
+		"plan": "std"
+	},
+	"users": [
+		{
+			"id": "U023BECGF",
+			"name": "bobby",
+			"deleted": false,
+			"color": "9f69e7",
+			"profile": {
+					"first_name": "Bobby",
+					"last_name": "Tables",
+					"real_name": "Bobby Tables",
+					"email": "bobby@slack.com",
+					"skype": "my-skype-name",
+					"phone": "+1 (123) 456 7890",
+					"image_24": "https://...",
+					"image_32": "https://...",
+					"image_48": "https://...",
+					"image_72": "https://...",
+					"image_192": "https://..."
+			},
+			"is_admin": true,
+			"is_owner": true,
+			"has_2fa": false,
+			"has_files": true
+		}
+	],
+	"channels": [
+		{
+			"id": "C024BE91L",
+			"name": "fun",
+			"created": 1360782804,
+			"creator": "U024BE7LH",
+			"is_archived": false,
+			"is_member": false,
+			"num_members": 6,
+			"topic": {
+					"value": "Fun times",
+					"creator": "U024BE7LV",
+					"last_set": 1369677212
+			},
+			"purpose": {
+					"value": "This channel is for fun",
+					"creator": "U024BE7LH",
+					"last_set": 1360782804
 			}
-		],
-		"channels": [
-			{
-				"id": "C024BE91L",
-				"name": "fun",
-				"created": 1360782804,
-				"creator": "U024BE7LH",
-				"is_archived": false,
-				"is_member": false,
-				"num_members": 6,
-				"topic": {
-						"value": "Fun times",
-						"creator": "U024BE7LV",
-						"last_set": 1369677212
-				},
-				"purpose": {
-						"value": "This channel is for fun",
-						"creator": "U024BE7LH",
-						"last_set": 1360782804
-				}
+		}
+	],
+	"groups": [
+		{
+			"id": "G0S90BMLM",
+			"name":"mpdm-arun--nestordev--nestorbot-1",
+			"is_group":true,
+			"created":1457726041,
+			"creator":"U0AJWAFAB",
+			"is_archived":false,
+			"is_mpim":true,
+			"has_pins":false,
+			"is_open":false,
+			"last_read":"0000000000.000000",
+			"latest":null,
+			"unread_count":0,
+			"unread_count_display":0,
+			"members": ["U0AJWAFAB","U0G9XPJQ2","U0GNJR6QY"],
+			"topic": {
+				"value":"Group messaging",
+				"creator":"U0AJWAFAB",
+				"last_set":1457726041
+			},
+			"purpose": {
+				"value":"Group messaging with: @arun @nestordev @nestorbot",
+				"creator":"U0AJWAFAB",
+				"last_set":1457726041
 			}
-    ]
+		}
+	]
 }
 `, makeWsProto(wsServer.URL)), 200)
 			existingSlackHost = os.Getenv("SLACK_HOST")
@@ -677,7 +705,35 @@ var _ = Describe("Client", func() {
            "created": 1356250715,
            "is_user_deleted": false
         }
-    ]
+    ],
+    "groups": [
+      {
+        "id": "G0S90BMLM",
+        "name":"mpdm-arun--nestordev--nestorbot-1",
+        "is_group":true,
+        "created":1457726041,
+        "creator":"U0AJWAFAB",
+        "is_archived":false,
+        "is_mpim":true,
+        "has_pins":false,
+        "is_open":false,
+        "last_read":"0000000000.000000",
+        "latest":null,
+        "unread_count":0,
+        "unread_count_display":0,
+        "members": ["U0AJWAFAB","U0G9XPJQ2","U0GNJR6QY"],
+        "topic": {
+          "value":"Group messaging",
+          "creator":"U0AJWAFAB",
+          "last_set":1457726041
+        },
+        "purpose": {
+          "value":"Group messaging with: @arun @nestordev @nestorbot",
+          "creator":"U0AJWAFAB",
+          "last_set":1457726041
+        }
+      }
+   ]
 }
 `, 200)
 				existingSlackHost = os.Getenv("SLACK_HOST")
@@ -733,7 +789,13 @@ var _ = Describe("Client", func() {
 				Expect(client.data.ChannelsList[1].CreatorId).To(Equal("U024BE7LH"))
 				Expect(client.data.ChannelsList[1].Created).To(Equal(int64(1360782804)))
 
-				Expect(len(client.data.Channels)).To(Equal(4))
+				Expect(len(client.data.GroupsList)).To(Equal(1))
+				Expect(client.data.GroupsList[0].Id).To(Equal("G0S90BMLM"))
+				Expect(client.data.GroupsList[0].Name).To(Equal("mpdm-arun--nestordev--nestorbot-1"))
+				Expect(client.data.GroupsList[0].CreatorId).To(Equal("U0AJWAFAB"))
+				Expect(client.data.GroupsList[0].Created).To(Equal(int64(1457726041)))
+
+				Expect(len(client.data.Channels)).To(Equal(5))
 				Expect(len(client.data.Users)).To(Equal(2))
 			})
 		})

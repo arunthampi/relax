@@ -101,6 +101,10 @@ func (c *Client) Login() error {
 				c.Im = false
 				metadata.Channels[c.Id] = c
 			}
+			for _, g := range metadata.GroupsList {
+				g.Im = false
+				metadata.Channels[g.Id] = g
+			}
 			for _, u := range metadata.UsersList {
 				metadata.Users[u.Id] = u
 			}
@@ -524,6 +528,7 @@ func (c *Client) handleMessage(msg *Message) {
 				"error": err,
 			}).Error("error parsing channel from channel_joined")
 		} else {
+			channel.Im = false
 			c.data.Channels[channel.Id] = channel
 			msg.Channel = channel
 			// Don't send channel joined messages for upto a minute

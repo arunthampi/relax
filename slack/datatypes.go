@@ -124,6 +124,7 @@ type Metadata struct {
 	Url          string    `json:"url"`
 	ImsList      []Im      `json:"ims"`
 	ChannelsList []Channel `json:"channels"`
+	GroupsList   []Channel `json:"groups"`
 	UsersList    []User    `json:"users"`
 	Error        string    `json:"error"`
 
