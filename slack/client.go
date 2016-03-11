@@ -406,7 +406,6 @@ func (c *Client) startReadFromSlackLoop() {
 		if err == nil {
 			if messageType == websocket.TextMessage {
 				var message Message
-
 				if err = json.Unmarshal(msg, &message); err == nil {
 					c.handleMessage(&message)
 				} else {
@@ -519,6 +518,8 @@ func (c *Client) handleMessage(msg *Message) {
 			c.sendEvent("im_created", msg, "", "", "")
 		}
 
+	case "group_joined":
+		fallthrough
 	case "channel_joined":
 		var channel Channel
 

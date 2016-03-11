@@ -1648,5 +1648,83 @@ var _ = Describe("Client", func() {
 				Expect(val.Val()).To(Equal("ok"))
 			})
 		})
+
+		Context("group_joined", func() {
+			BeforeEach(func() {
+				redisClient = newRedisClient()
+				setRedisQueueWebEnv()
+
+				wsServer = newWSServer(`
+					{
+						"type":"group_joined",
+						"channel":{
+							"id":"G0S97D1V4",
+							"name":"mpdm-arun--nestordev--user-1",
+							"is_group":true,
+							"created":1457729017,
+							"creator":"U0AJWAFAB",
+							"is_archived":false,
+							"is_mpim":true,
+							"is_open":false,
+							"last_read":"0000000000.000000",
+							"latest":null,
+							"unread_count":0,
+							"unread_count_display":0,
+							"members":["U0AJWAFAB","U0K3WMQRL","U0G9XPJQ2"],
+							"topic":{
+								"value":"",
+								"creator":"",
+								"last_set":0
+							},
+							"purpose":{
+								"value":"",
+								"creator":"","last_set":0
+							}
+						}
+					}
+				`)
+
+				client.data = &Metadata{
+					Ok:       true,
+					Url:      makeWsProto(wsServer.URL),
+					Users:    map[string]User{},
+					Channels: map[string]Channel{},
+					Self:     User{Id: "UBOTUID"},
+				}
+				client.data.Users["U024BE7LH"] = User{Id: "U024BE7LH"}
+				client.TeamId = "TDEADBEEF"
+
+				client.Start()
+			})
+
+			It("should send a 'channel_joined' event to Redis with the team ID and the channel", func() {
+				var event Event
+
+				resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
+				result := resultevent.Val()
+
+				Expect(len(result)).To(Equal(2))
+				err := json.Unmarshal([]byte(result[1]), &event)
+
+				Expect(err).To(BeNil())
+				Expect(event.Type).To(Equal("channel_joined"))
+				Expect(event.ChannelUid).To(Equal("G0S97D1V4"))
+				Expect(event.Timestamp).ToNot(Equal(""))
+				Expect(event.EventTimestamp).ToNot(Equal(""))
+				Expect(event.Text).To(Equal(""))
+				Expect(event.Im).To(BeFalse())
+				Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+				Expect(event.Provider).To(Equal("slack"))
+
+				Expect(client.data.Channels["G0S97D1V4"].Id).To(Equal("G0S97D1V4"))
+				Expect(client.data.Channels["G0S97D1V4"].Name).To(Equal("mpdm-arun--nestordev--user-1"))
+
+				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+				Expect(val).ToNot(BeNil())
+				Expect(val.Val()).To(Equal("ok"))
+			})
+		})
+
 	})
 })
