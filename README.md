@@ -74,27 +74,27 @@ are two primary ways of interacting with Relax:
 
 ### Starting Bots
 
-To start a bot, you need to `HSET` on `REDIS_BOTS_KEY` with a JSON blob
+To start a bot, you need to `HSET` on `RELAX_BOTS_KEY` with a JSON blob
 containing `"team_id"` and `"token"` keys which represent the Team UID
 and Token for the bot you want to start. Along with this, you should
-also `PUBLISH` on `REDIS_BOTS_PUBSUB` with a JSON blob containing the
+also `PUBLISH` on `RELAX_BOTS_PUBSUB` with a JSON blob containing the
 keys `"type"` and `"team_id"` containing the values `"team_added"` and
 the Team UID of the bot you want to start.
 
 For e.g., for a bot who's Slack Team UID is "TDEADBEEF" and who's token
 is "xoxo_slackbotoken", you can issue the following commands using
-`redis-cli` to start a bot (assuming that `$REDIS_BOTS_KEY` is `redis_bots_key`):
+`redis-cli` to start a bot (assuming that `$RELAX_BOTS_KEY` is `relax_bots_key`):
 
 ```bash
 $ redis-cli
 127.0.0.1:6379> MULTI
 OK
-127.0.0.1:6379> HSET redis_bots_key TDEADBEEF '{"team_id":"TDEADBEEF","token":"xoxo_slackbotoken"}'
+127.0.0.1:6379> HSET relax_bots_key TDEADBEEF '{"team_id":"TDEADBEEF","token":"xoxo_slackbotoken"}'
 (integer) 1
-127.0.0.1:6379> HGETALL redis_bots_key
+127.0.0.1:6379> HGETALL relax_bots_key
 1) "TDEADBEEF"
 2) "{\"team_id\":\"TDEADBEEF\",\"token\":\"xoxo_slackbotoken\"}"
-127.0.0.1:6379> PUBLISH redis_bots_pubsub '{"type":"team_added","team_id":"TDEADBEEF"}'
+127.0.0.1:6379> PUBLISH relax_bots_pubsub '{"type":"team_added","team_id":"TDEADBEEF"}'
 QUEUED
 127.0.0.1:6379> EXEC
 ```
@@ -103,8 +103,8 @@ QUEUED
 
 Relax also generates events (details of events are described in the ["Events" section of the README](https://github.com/zerobotlabs/relax#events))
 
-Events are queued in the `$REDIS_EVENTS_QUEUE` key in Redis and so to consume events,
-you need to `LPOP` or `BLPOP` the `$REDIS_EVENTS_QUEUE` to deal with events.
+Events are queued in the `$RELAX_EVENTS_QUEUE` key in Redis and so to consume events,
+you need to `LPOP` or `BLPOP` the `$RELAX_EVENTS_QUEUE` to deal with events.
 
 ## Events
 
