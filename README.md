@@ -11,6 +11,7 @@ your web app can then take action on. The protocol is JSON based and so
 any web app can communicate with Relax.
 
 [![Travis Badge for Relax](https://travis-ci.org/zerobotlabs/relax.svg?branch=master)](https://travis-ci.org/zerobotlabs/relax)
+[![Gitter](https://badges.gitter.im/zerobotlabs/relax.svg)](https://gitter.im/zerobotlabs/relax?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 If you are a Rails app however, there is a nifty [Ruby
 client](https://github.com/zerobotlabs/relax-rb) for you to use.
