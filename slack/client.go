@@ -185,14 +185,7 @@ func (c *Client) Start() error {
 	}
 
 	// This serves no real purpose other than to let tests know that a certain client has been initialized
-	val := c.redisClient.HSet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot-%s-started", c.TeamId), fmt.Sprintf("%d", time.Now().Nanosecond()))
-	if val == nil || val.Val() != true {
-		log.WithFields(log.Fields{
-			"team":  c.TeamId,
-			"error": fmt.Sprintf("could not set bot-%s-started in RELAX_MUTEX_KEY", c.TeamId),
-		}).Error("starting slack client")
-	}
-
+	c.redisClient.HSet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot-%s-started", c.TeamId), fmt.Sprintf("%d", time.Now().Nanosecond()))
 	Clients[c.TeamId] = c
 
 	return nil
