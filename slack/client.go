@@ -239,10 +239,6 @@ func (c *Client) startPingPump() {
 				break
 			}
 			c.conn.WriteMessage(websocket.TextMessage, []byte(json))
-
-			log.WithFields(log.Fields{
-				"heartbeats": c.heartBeatsMissed,
-			}).Debug("heartbeats missed")
 		}
 	}
 
@@ -494,9 +490,6 @@ func (c *Client) handleMessage(msg *Message) {
 	case "pong":
 		if msg.ReplyTo == c.TeamId {
 			c.ResetHeartBeatsMissed()
-			log.WithFields(log.Fields{
-				"heartbeats": c.heartBeatsMissed,
-			}).Debug("set heartbeats to zero")
 		}
 	case "message":
 		userId := msg.UserId()
