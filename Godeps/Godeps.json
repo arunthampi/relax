@@ -11,6 +11,11 @@
 			"Rev": "b673bf363d3658506891150a6dca42059572d1b0"
 		},
 		{
+			"ImportPath": "github.com/cenkalti/backoff",
+			"Comment": "v1.0.0",
+			"Rev": "32cd0c5b3aef12c76ed64aaf678f6c79736be7dc"
+		},
+		{
 			"ImportPath": "github.com/facebookgo/clock",
 			"Rev": "600d898af40aa09a7a93ecb9265d87b0504b6f03"
 		},

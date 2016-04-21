@@ -10,9 +10,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/cenkalti/backoff"
 	"github.com/zerobotlabs/relax/redisclient"
 	"github.com/zerobotlabs/relax/utils"
 
@@ -42,6 +44,7 @@ func NewClient(initJSON string) (*Client, error) {
 		return &c, err
 	}
 
+	c.heartBeatsMutex = &sync.Mutex{}
 	return &c, nil
 }
 
@@ -74,6 +77,18 @@ func InitClients() {
 	}
 
 	go startReadFromRedisPubSubLoop()
+}
+
+func (c *Client) ResetHeartBeatsMissed() {
+	c.heartBeatsMutex.Lock()
+	c.heartBeatsMissed = 0
+	c.heartBeatsMutex.Unlock()
+}
+
+func (c *Client) IncrementHeartBeatsMissed() {
+	c.heartBeatsMutex.Lock()
+	c.heartBeatsMissed = c.heartBeatsMissed + 1
+	c.heartBeatsMutex.Unlock()
 }
 
 // Login calls the "rtm.start" Slack API and gets a bunch of information such as
@@ -143,7 +158,9 @@ func (c *Client) Start() error {
 			c.conn = conn
 		}
 
+		c.pingTicker = time.NewTicker(time.Millisecond * 5000)
 		go c.startReadFromSlackLoop()
+		go c.startPingPump()
 	} else {
 		// Bot has been disabled by the user,
 		// so we need to mark it as disabled
@@ -168,14 +185,7 @@ func (c *Client) Start() error {
 	}
 
 	// This serves no real purpose other than to let tests know that a certain client has been initialized
-	val := c.redisClient.HSet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot-%s-started", c.TeamId), fmt.Sprintf("%d", time.Now().Nanosecond()))
-	if val == nil || val.Val() != true {
-		log.WithFields(log.Fields{
-			"team":  c.TeamId,
-			"error": fmt.Sprintf("could not set bot-%s-started in RELAX_MUTEX_KEY", c.TeamId),
-		}).Error("starting slack client")
-	}
-
+	c.redisClient.HSet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot-%s-started", c.TeamId), fmt.Sprintf("%d", time.Now().Nanosecond()))
 	Clients[c.TeamId] = c
 
 	return nil
@@ -184,7 +194,9 @@ func (c *Client) Start() error {
 // LoginAndStarts is a simple helper function that calls login and start successively
 // so that it can be invoked in a goroutine (as is done in InitClients)
 func (c *Client) LoginAndStart() error {
-	err := c.Login()
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 1500 * time.Millisecond
+	err := backoff.Retry(c.Login, b)
 
 	if err == nil {
 		err = c.Start()
@@ -196,6 +208,34 @@ func (c *Client) LoginAndStart() error {
 	}
 
 	return err
+}
+
+func (c *Client) startPingPump() {
+	for _ = range c.pingTicker.C {
+		m := Message{
+			Id:             c.TeamId,
+			Type:           "ping",
+			EventTimestamp: fmt.Sprintf("%d", time.Now().UnixNano()),
+		}
+
+		json, err := json.Marshal(m)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Error("error marshaling ping message")
+		} else {
+			c.IncrementHeartBeatsMissed()
+			if c.heartBeatsMissed >= 3 {
+				c.ResetHeartBeatsMissed()
+				c.pingTicker.Stop()
+				c.Stop()
+				break
+			}
+			c.conn.WriteMessage(websocket.TextMessage, []byte(json))
+		}
+	}
+
+	go c.LoginAndStart()
 }
 
 // Stop closes the websocket connection to Slack's websocket servers
@@ -440,6 +480,10 @@ func (c *Client) startReadFromSlackLoop() {
 func (c *Client) handleMessage(msg *Message) {
 	switch msg.Type {
 
+	case "pong":
+		if msg.ReplyTo == c.TeamId {
+			c.ResetHeartBeatsMissed()
+		}
 	case "message":
 		userId := msg.UserId()
 		channelId := msg.ChannelId()

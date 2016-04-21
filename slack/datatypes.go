@@ -3,6 +3,8 @@ package slack
 import (
 	"encoding/json"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/gorilla/websocket"
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/gopkg.in/redis.v3"
@@ -41,6 +43,7 @@ type Im struct {
 
 // Message represents a message on Slack
 type Message struct {
+	Id               string `json:"id"`
 	Type             string `json:"type"`
 	Subtype          string `json:"subtype"`
 	Text             string `json:"text"`
@@ -54,6 +57,7 @@ type Message struct {
 	// only once, and will be used by the `shouldSendToBot` function
 	EventTimestamp string `json:"event_ts"`
 
+	ReplyTo string `json:"reply_to"`
 	User    User
 	Channel Channel
 
@@ -135,12 +139,15 @@ type Metadata struct {
 // Client is the backbone of this entire project and is used to make connections
 // to the Slack API, and send response events back to the user
 type Client struct {
-	Token       string `json:"token"`
-	TeamId      string `json:"team_id"`
-	Provider    string `json:"provider"`
-	data        *Metadata
-	conn        *websocket.Conn
-	redisClient *redis.Client
+	Token            string `json:"token"`
+	TeamId           string `json:"team_id"`
+	Provider         string `json:"provider"`
+	heartBeatsMissed int64
+	heartBeatsMutex  *sync.Mutex
+	data             *Metadata
+	conn             *websocket.Conn
+	pingTicker       *time.Ticker
+	redisClient      *redis.Client
 }
 
 // User represents a user on Slack
