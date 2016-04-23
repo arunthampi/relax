@@ -182,4 +182,5 @@ type Event struct {
 	Timestamp      string `json:"timestamp"`
 	Provider       string `json:"provider"`
 	EventTimestamp string `json:"event_timestamp"`
+	Namespace      string `json:"namespace"`
 }

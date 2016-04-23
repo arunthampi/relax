@@ -420,7 +420,8 @@ var _ = Describe("Client", func() {
 				rc.HSet(os.Getenv("RELAX_BOTS_KEY"), "TDEADBEEF", `{
 					"token": "xoxo_deadbeef",
 					"team_id": "TDEADBEEF",
-					"provider": "slack"
+					"provider": "slack",
+					"namespace": "namespace"
 				}`)
 			})
 
@@ -447,6 +448,7 @@ var _ = Describe("Client", func() {
 				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 				Expect(event.Provider).To(Equal("slack"))
 				Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+				Expect(event.Namespace).To(Equal("namespace"))
 
 				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
 				Expect(val).ToNot(BeNil())
@@ -520,6 +522,7 @@ var _ = Describe("Client", func() {
 				Expect(event.TeamUid).To(Equal("TDEADBEEF"))
 				Expect(event.Provider).To(Equal("slack"))
 				Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+				Expect(event.Namespace).To(Equal(""))
 
 				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
 				Expect(val).ToNot(BeNil())
