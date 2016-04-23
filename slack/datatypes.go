@@ -26,6 +26,7 @@ type Command struct {
 	TeamId    string `json:"team_id"`
 	UserId    string `json:"user_id"`
 	ChannelId string `json:"channel_id"`
+	Namespace string `json:"namespace"`
 	Payload   string `json:"payload"`
 }
 
@@ -142,6 +143,7 @@ type Client struct {
 	Token            string `json:"token"`
 	TeamId           string `json:"team_id"`
 	Provider         string `json:"provider"`
+	Namespace        string `json:"namespace"`
 	heartBeatsMissed int64
 	heartBeatsMutex  *sync.Mutex
 	data             *Metadata

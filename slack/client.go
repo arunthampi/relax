@@ -403,10 +403,18 @@ func startReadFromRedisPubSubLoop() {
 					}
 
 				case "team_added":
+					var key string
+
 					if cmd.TeamId == "" {
 						break
 					}
-					result := redisClient.HGet(os.Getenv("RELAX_BOTS_KEY"), cmd.TeamId)
+					if cmd.Namespace == "" {
+						key = cmd.TeamId
+					} else {
+						key = fmt.Sprintf("%s-%s", cmd.Namespace, cmd.TeamId)
+					}
+
+					result := redisClient.HGet(os.Getenv("RELAX_BOTS_KEY"), key)
 					if result == nil {
 						break
 					}
