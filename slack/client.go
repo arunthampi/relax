@@ -517,7 +517,7 @@ func (c *Client) handleMessage(msg *Message) {
 		// simple message
 		case "":
 			// Ignore Messages sent from the bot itself
-			if userId != c.data.Self.Id {
+			if userId != c.data.Self.Id || (userId == c.data.Self.Id && os.Getenv("RELAX_SEND_BOT_REPLIES") == "true") {
 				msg.User = c.data.Users[userId]
 				msg.Channel = c.data.Channels[channelId]
 

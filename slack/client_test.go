@@ -1158,20 +1158,63 @@ var _ = Describe("Client", func() {
 					}
 					client.data.Channels["C2147483705"] = Channel{Id: "C2147483705", Im: false}
 					client.data.Users["U2147483697"] = User{Id: "U2147483697"}
+					client.data.Users["UBOTUID"] = User{Id: "UBOTUID"}
 					client.TeamId = "TDEADBEEF"
-
-					client.Start()
 				})
 
 				AfterEach(func() {
 					wsServer.Close()
 				})
 
-				It("should NOT send an event to Redis", func() {
-					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
-					result := resultevent.Val()
+				Context("RELAX_SEND_BOT_REPLIES environment variable is not set", func() {
+					BeforeEach(func() {
+						os.Unsetenv("RELAX_SEND_BOT_REPLIES")
+						client.Start()
+					})
 
-					Expect(len(result)).To(Equal(0))
+					It("should NOT send an event to Redis", func() {
+						resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
+						result := resultevent.Val()
+
+						Expect(len(result)).To(Equal(0))
+					})
+				})
+
+				Context("RELAX_SEND_BOT_REPLIES environment variable is set", func() {
+					BeforeEach(func() {
+						os.Setenv("RELAX_SEND_BOT_REPLIES", "true")
+						client.Start()
+					})
+
+					AfterEach(func() {
+						os.Unsetenv("RELAX_SEND_BOT_REPLIES")
+					})
+
+					It("should send an event to Redis", func() {
+						var event Event
+
+						resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
+						result := resultevent.Val()
+
+						Expect(len(result)).To(Equal(2))
+						err := json.Unmarshal([]byte(result[1]), &event)
+
+						Expect(err).To(BeNil())
+						Expect(event.Type).To(Equal("message_new"))
+						Expect(event.ChannelUid).To(Equal("C2147483705"))
+						Expect(event.UserUid).To(Equal("UBOTUID"))
+						Expect(event.Text).To(Equal("Hey <@UBOTUID> Hello world"))
+						Expect(event.Timestamp).To(Equal("1355517523.000005"))
+						Expect(event.Im).To(BeFalse())
+						Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+						Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+						Expect(event.Provider).To(Equal("slack"))
+						Expect(event.EventTimestamp).To(Equal("1355517523.000005"))
+
+						val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+						Expect(val).ToNot(BeNil())
+						Expect(val.Val()).To(Equal("ok"))
+					})
 				})
 			})
 
