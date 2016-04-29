@@ -541,6 +541,19 @@ func (c *Client) handleMessage(msg *Message) {
 			msg.User = c.data.Users[userId]
 			msg.Channel = c.data.Channels[channelId]
 
+			if msg.Channel.Id == "" {
+				messageBytes, err := msg.RawMessage.MarshalJSON()
+				if err == nil {
+					log.WithFields(log.Fields{
+						"messageBytes": string(messageBytes),
+					}).Info("messagbytes when channel id is blank for reaction_added")
+				} else {
+					log.WithFields(log.Fields{
+						"error": err,
+					}).Info("error getting marshalJSON when channel id is blank for reaction_added")
+				}
+			}
+
 			c.sendEvent("reaction_added", msg, msg.Reaction, embeddedItem.Timestamp, msg.EventTimestamp)
 		}
 
