@@ -142,6 +142,8 @@ func (c *Client) Login() error {
 // has expired or is incorrect and so it sends a "disable_bot" event back to the user
 // so that they can take remedial action.
 func (c *Client) Start() error {
+	var key string
+
 	// Make connection to redis now
 	c.redisClient = redisclient.Client()
 
@@ -186,7 +188,14 @@ func (c *Client) Start() error {
 
 	// This serves no real purpose other than to let tests know that a certain client has been initialized
 	c.redisClient.HSet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot-%s-started", c.TeamId), fmt.Sprintf("%d", time.Now().Nanosecond()))
-	Clients[c.TeamId] = c
+
+	if c.Namespace == "" {
+		key = c.TeamId
+	} else {
+		key = fmt.Sprintf("%s-%s", c.Namespace, c.TeamId)
+	}
+
+	Clients[key] = c
 
 	return nil
 }
@@ -371,6 +380,7 @@ func startReadFromRedisPubSubLoop() {
 				switch cmd.Type {
 				case "message":
 					shouldSend := true
+					var key string
 
 					if cmd.TeamId == "" {
 						break
@@ -379,7 +389,14 @@ func startReadFromRedisPubSubLoop() {
 					if cmd.Id == "" {
 						cmd.Id = fmt.Sprintf("%d", time.Now().Nanosecond())
 					}
-					c := Clients[cmd.TeamId]
+
+					if cmd.Namespace == "" {
+						key = cmd.TeamId
+					} else {
+						key = fmt.Sprintf("%s-%s", cmd.Namespace, cmd.TeamId)
+					}
+
+					c := Clients[key]
 
 					if c != nil && c.conn != nil {
 						key := fmt.Sprintf("send_slack_message:%s", cmd.Id)
@@ -420,7 +437,7 @@ func startReadFromRedisPubSubLoop() {
 						break
 					}
 					val := result.Val()
-					c := Clients[cmd.TeamId]
+					c := Clients[key]
 
 					if c != nil {
 						err := c.Stop()
