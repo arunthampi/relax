@@ -54,6 +54,9 @@ func newWSListenerServer(c chan<- []byte) *httptest.Server {
 		for {
 			_, msg, err := ws.ReadMessage()
 			if err != nil {
+				if strings.HasPrefix(err.Error(), "websocket: close") {
+					c <- []byte("connection closed")
+				}
 				continue
 			}
 
@@ -110,6 +113,167 @@ var _ = Describe("Client", func() {
 
 		rc = newRedisClient()
 		rc.FlushDb()
+	})
+
+	Describe("InitClient - team_removed event", func() {
+		var server *httptest.Server
+		var existingSlackHost string
+		var wsServer *httptest.Server
+		var receiverChan chan []byte
+
+		BeforeEach(func() {
+			setRedisQueueWebEnv()
+			receiverChan = make(chan []byte)
+
+			wsServer = newWSListenerServer(receiverChan)
+			server = newTestServer(fmt.Sprintf(`
+{
+	"ok": true,
+	"url": "%s",
+	"self": {
+		"id": "URELAXBOT",
+		"name": "bot",
+		"created": 1402463766,
+		"manual_presence": "active"
+	},
+	"team": {
+		"id": "TDEADBEEF",
+		"name": "Example Team",
+		"email_domain": "",
+		"domain": "example",
+		"msg_edit_window_mins": -1,
+		"over_storage_limit": false,
+		"plan": "std"
+	},
+	"users": [
+		{
+			"id": "U023BECGF",
+			"name": "bobby",
+			"deleted": false,
+			"color": "9f69e7",
+			"profile": {
+					"first_name": "Bobby",
+					"last_name": "Tables",
+					"real_name": "Bobby Tables",
+					"email": "bobby@slack.com",
+					"skype": "my-skype-name",
+					"phone": "+1 (123) 456 7890",
+					"image_24": "https://...",
+					"image_32": "https://...",
+					"image_48": "https://...",
+					"image_72": "https://...",
+					"image_192": "https://..."
+			},
+			"is_admin": true,
+			"is_owner": true,
+			"has_2fa": false,
+			"has_files": true
+		}
+	],
+	"channels": [
+		{
+			"id": "C024BE91L",
+			"name": "fun",
+			"created": 1360782804,
+			"creator": "U024BE7LH",
+			"is_archived": false,
+			"is_member": false,
+			"num_members": 6,
+			"topic": {
+					"value": "Fun times",
+					"creator": "U024BE7LV",
+					"last_set": 1369677212
+			},
+			"purpose": {
+					"value": "This channel is for fun",
+					"creator": "U024BE7LH",
+					"last_set": 1360782804
+			}
+		}
+	],
+	"groups": [
+		{
+			"id": "G0S90BMLM",
+			"name":"mpdm-arun--nestordev--nestorbot-1",
+			"is_group":true,
+			"created":1457726041,
+			"creator":"U0AJWAFAB",
+			"is_archived":false,
+			"is_mpim":true,
+			"has_pins":false,
+			"is_open":false,
+			"last_read":"0000000000.000000",
+			"latest":null,
+			"unread_count":0,
+			"unread_count_display":0,
+			"members": ["U0AJWAFAB","U0G9XPJQ2","U0GNJR6QY"],
+			"topic": {
+				"value":"Group messaging",
+				"creator":"U0AJWAFAB",
+				"last_set":1457726041
+			},
+			"purpose": {
+				"value":"Group messaging with: @arun @nestordev @nestorbot",
+				"creator":"U0AJWAFAB",
+				"last_set":1457726041
+			}
+		}
+	]
+}
+`, makeWsProto(wsServer.URL)), 200)
+			existingSlackHost = os.Getenv("SLACK_HOST")
+			os.Setenv("SLACK_HOST", server.URL)
+			os.Setenv("RELAX_BOTS_KEY", "relax_redis_key")
+			os.Setenv("RELAX_BOTS_PUBSUB", "redis_pubsub_relax")
+
+			rc.HSet(os.Getenv("RELAX_BOTS_KEY"), "TDEADBEEF", `{
+				"token": "xoxo_deadbeef",
+				"team_id": "TDEADBEEF",
+				"provider": "slack"
+			}`)
+
+			InitClients()
+		})
+
+		AfterEach(func() {
+			server.Close()
+			wsServer.Close()
+		})
+
+		It("should stop the client", func() {
+			message := ""
+
+			// Wait until the client has been initialized
+			result := rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "bot-TDEADBEEF-started")
+			for result == nil || result.Val() == "" {
+				result = rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "bot-TDEADBEEF-started")
+				time.Sleep(500 * time.Millisecond)
+			}
+
+			// The listener might not be ready yet, so let's loop until we do
+			intCmd := rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"team_removed","team_id":"TDEADBEEF"}`)
+			for intCmd == nil || intCmd.Val() == 0 {
+				intCmd = rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"team_removed","team_id":"TDEADBEEF"}`)
+				time.Sleep(500 * time.Millisecond)
+			}
+
+			Expect(intCmd).ToNot(BeNil())
+
+			timeout := make(chan bool, 1)
+			go func() {
+				time.Sleep(2 * time.Second)
+				timeout <- true
+			}()
+
+			select {
+			case msg := <-receiverChan:
+				message = string(msg)
+			case <-timeout:
+			}
+
+			Expect(message).To(Equal("connection closed"))
+			Expect(Clients.Count()).To(Equal(0))
+		})
 	})
 
 	Describe("InitClient - message event", func() {
@@ -289,7 +453,6 @@ var _ = Describe("Client", func() {
 
 				val := rc.HSet(os.Getenv("RELAX_MUTEX_KEY"), "send_slack_message:CAFEDEAD1", "ok")
 				Expect(val).ToNot(BeNil())
-				Expect(val.Val()).To(Equal(true))
 
 				// The listener might not be ready yet, so let's loop until we do
 				intCmd := rc.Publish(os.Getenv("RELAX_BOTS_PUBSUB"), `{"type":"message","team_id":"TDEADBEEF","id":"CAFEDEAD1","payload":"message to slack"}`)

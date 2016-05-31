@@ -465,6 +465,39 @@ func startReadFromRedisPubSubLoop() {
 							"error": err,
 						}).Error("starting client")
 					}
+
+				case "team_removed":
+					var key string
+					var c *Client
+
+					if cmd.TeamId == "" {
+						break
+					}
+					if cmd.Namespace == "" {
+						key = cmd.TeamId
+					} else {
+						key = fmt.Sprintf("%s-%s", cmd.Namespace, cmd.TeamId)
+					}
+
+					result := redisClient.HGet(os.Getenv("RELAX_BOTS_KEY"), key)
+					if result == nil {
+						break
+					}
+					if _c, ok := Clients.Get(key); ok {
+						c = _c.(*Client)
+					}
+
+					if c != nil {
+						err := c.Stop()
+						if err != nil {
+							log.WithFields(log.Fields{
+								"team":  cmd.TeamId,
+								"error": err,
+							}).Error("closing websocket connection")
+						}
+
+						Clients.Remove(key)
+					}
 				}
 			}
 		}
