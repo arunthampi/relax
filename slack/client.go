@@ -15,6 +15,7 @@ import (
 
 	log "github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/cenkalti/backoff"
+	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/streamrail/concurrent-map"
 	"github.com/zerobotlabs/relax/redisclient"
 	"github.com/zerobotlabs/relax/utils"
 
@@ -24,7 +25,7 @@ import (
 
 // This data structure holds all clients that are connected to Slack's RealTime API
 // keyed by Team ID
-var Clients = map[string]*Client{}
+var Clients = cmap.New()
 
 func init() {
 	utils.SetupLogging()
@@ -195,7 +196,7 @@ func (c *Client) Start() error {
 		key = fmt.Sprintf("%s-%s", c.Namespace, c.TeamId)
 	}
 
-	Clients[key] = c
+	Clients.Set(key, c)
 
 	return nil
 }
@@ -381,6 +382,7 @@ func startReadFromRedisPubSubLoop() {
 				case "message":
 					shouldSend := true
 					var key string
+					var c *Client
 
 					if cmd.TeamId == "" {
 						break
@@ -396,7 +398,9 @@ func startReadFromRedisPubSubLoop() {
 						key = fmt.Sprintf("%s-%s", cmd.Namespace, cmd.TeamId)
 					}
 
-					c := Clients[key]
+					if _c, ok := Clients.Get(key); ok {
+						c = _c.(*Client)
+					}
 
 					if c != nil && c.conn != nil {
 						key := fmt.Sprintf("send_slack_message:%s", cmd.Id)
@@ -422,6 +426,7 @@ func startReadFromRedisPubSubLoop() {
 
 				case "team_added":
 					var key string
+					var c *Client
 
 					if cmd.TeamId == "" {
 						break
@@ -437,7 +442,9 @@ func startReadFromRedisPubSubLoop() {
 						break
 					}
 					val := result.Val()
-					c := Clients[key]
+					if _c, ok := Clients.Get(key); ok {
+						c = _c.(*Client)
+					}
 
 					if c != nil {
 						err := c.Stop()

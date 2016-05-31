@@ -50,6 +50,10 @@
 			"Rev": "a2ab8644e0b6a33df2cbe44673bd0f6ebba9abc3"
 		},
 		{
+			"ImportPath": "github.com/streamrail/concurrent-map",
+			"Rev": "65a174a3a4188c0b7099acbc6cfa0c53628d3287"
+		},
+		{
 			"ImportPath": "gopkg.in/bsm/ratelimit.v1",
 			"Rev": "bda20d5067a03094fc6762f7ead53027afac5f28"
 		},
