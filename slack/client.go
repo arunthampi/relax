@@ -534,10 +534,18 @@ func (c *Client) startReadFromSlackLoop() {
 					"error": err,
 				}).Error("error reading message from slack websocket connection")
 
-				return
+				c.ResetHeartBeatsMissed()
+				c.pingTicker.Stop()
+				c.Stop()
+				break
 			}
 		}
 	}
+
+	log.WithFields(log.Fields{
+		"team": c.TeamId,
+	}).Info("restarting client from within the read loop")
+	go c.LoginAndStart()
 }
 
 // handleMessage is a utility method that handles the different Slack events that
