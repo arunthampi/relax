@@ -177,6 +177,9 @@ func (c *Client) Start() error {
 			if err != nil {
 				return err
 			}
+		} else if c.data.Error == "migration_in_progress" {
+			go c.LoginAndStart()
+			return nil
 		}
 
 		log.WithFields(log.Fields{
