@@ -32,9 +32,6 @@ trying to connect to Heroku's Redis server by tailing logs `heroku logs
 ## Coming Soon
 
 * Pluggable Messaging Backends
-* Analytics
-* Don't want to host it yourself? Get in touch at
-  [hello@zerobotlabs.com](mailto:hello@zerobotlabs.com)
 
 ## Installation
 
@@ -45,6 +42,15 @@ of Go. You can download the latest stable version of relax
 Binaries are available for both OS X and Linux. Untar and gunzip the
 downloaded file and move the `relax` binary to your `$PATH` to start
 using.
+
+## Don't Want to Host It Yourself?
+
+If you don't want to host Relax yourself, head on over to
+[https://getbotmetrics.com](https://getbotmetrics.com) which offers
+Relax hosting as well as analytics and metrics for your Slack bot. You
+will receive Relax events as JSON strings to a webhook you specify and
+also get analytics and metrics for your Slack bot.
+
 
 ## In Production Use
 
