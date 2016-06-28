@@ -11,6 +11,10 @@
 			"Rev": "b673bf363d3658506891150a6dca42059572d1b0"
 		},
 		{
+			"ImportPath": "github.com/botmetrics/go-botmetrics",
+			"Rev": "557162f23c828eeff7622681f5ac3abcb24e5ac5"
+		},
+		{
 			"ImportPath": "github.com/cenkalti/backoff",
 			"Comment": "v1.0.0",
 			"Rev": "32cd0c5b3aef12c76ed64aaf678f6c79736be7dc"
