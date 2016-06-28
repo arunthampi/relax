@@ -21,11 +21,15 @@ func Test(t *testing.T) {
 	RunSpecs(t, "client")
 }
 
-func newTestServer(jsonResponse string, statusCode int) *httptest.Server {
+func newTestServer(jsonResponse string, statusCode int, c chan<- []byte) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(statusCode)
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintln(w, jsonResponse)
+
+		if c != nil {
+			c <- []byte(jsonResponse)
+		}
 	}))
 
 	return server
@@ -220,7 +224,7 @@ var _ = Describe("Client", func() {
 		}
 	]
 }
-`, makeWsProto(wsServer.URL)), 200)
+`, makeWsProto(wsServer.URL)), 200, nil)
 			existingSlackHost = os.Getenv("SLACK_HOST")
 			os.Setenv("SLACK_HOST", server.URL)
 			os.Setenv("RELAX_BOTS_KEY", "relax_redis_key")
@@ -381,7 +385,7 @@ var _ = Describe("Client", func() {
 		}
 	]
 }
-`, makeWsProto(wsServer.URL)), 200)
+`, makeWsProto(wsServer.URL)), 200, nil)
 			existingSlackHost = os.Getenv("SLACK_HOST")
 			os.Setenv("SLACK_HOST", server.URL)
 			os.Setenv("RELAX_BOTS_KEY", "relax_redis_key")
@@ -564,7 +568,7 @@ var _ = Describe("Client", func() {
 			}
     ]
 }
-`, makeWsProto(wsServer.URL)), 200)
+`, makeWsProto(wsServer.URL)), 200, nil)
 			existingSlackHost = os.Getenv("SLACK_HOST")
 			os.Setenv("SLACK_HOST", server.URL)
 			os.Setenv("RELAX_BOTS_KEY", "relax_redis_key")
@@ -616,6 +620,79 @@ var _ = Describe("Client", func() {
 				val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
 				Expect(val).ToNot(BeNil())
 				Expect(val.Val()).To(Equal("ok"))
+			})
+
+			Context("with botmetrics registration enabled", func() {
+				var botmetricsServer *httptest.Server
+				var botmetricsChan chan []byte
+
+				JustBeforeEach(func() {
+					botmetricsChan = make(chan []byte)
+					os.Setenv("BOTMETRICS_ENABLED", "true")
+					botmetricsServer = newTestServer("{\"ok\":true}", 201, botmetricsChan)
+
+					os.Setenv("BOTMETRICS_API_HOST", botmetricsServer.URL)
+					os.Setenv("BOTMETRICS_BOT_ID", "botmetrics_bot_id")
+					os.Setenv("BOTMETRICS_API_KEY", "botmetrics_api_key")
+				})
+
+				AfterEach(func() {
+					os.Unsetenv("BOTMETRICS_ENABLED")
+				})
+
+				Context("when the bot hasn't been registered with botmetrics already", func() {
+					It("should call the botmetrics API to register a bot", func() {
+						var message string
+						InitClients()
+
+						timeout := make(chan bool, 1)
+						go func() {
+							time.Sleep(2 * time.Second)
+							timeout <- true
+						}()
+
+						select {
+						case msg := <-botmetricsChan:
+							message = string(msg)
+						case <-timeout:
+						}
+
+						Expect(message).To(Equal("{\"ok\":true}"))
+						val := rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "botmetrics:TDEADBEEF")
+						Expect(val).ToNot(BeNil())
+						Expect(val.Val()).To(Equal("ok"))
+					})
+				})
+
+				Context("when the bot has been registered with botmetrics already", func() {
+					JustBeforeEach(func() {
+						val := rc.HSet(os.Getenv("RELAX_MUTEX_KEY"), "botmetrics:TDEADBEEF", "ok")
+						Expect(val).ToNot(BeNil())
+						Expect(val.Val()).To(Equal(true))
+					})
+
+					It("should call the botmetrics API to register a bot", func() {
+						var message string
+						InitClients()
+
+						timeout := make(chan bool, 1)
+						go func() {
+							time.Sleep(2 * time.Second)
+							timeout <- true
+						}()
+
+						select {
+						case msg := <-botmetricsChan:
+							message = string(msg)
+						case <-timeout:
+						}
+
+						Expect(message).To(Equal(""))
+						val := rc.HGet(os.Getenv("RELAX_MUTEX_KEY"), "botmetrics:TDEADBEEF")
+						Expect(val).ToNot(BeNil())
+						Expect(val.Val()).To(Equal("ok"))
+					})
+				})
 			})
 		})
 
@@ -726,7 +803,7 @@ var _ = Describe("Client", func() {
 
 		Context("unsuccessful login", func() {
 			BeforeEach(func() {
-				server = newTestServer("{\"ok\": false}", 500)
+				server = newTestServer("{\"ok\": false}", 500, nil)
 				existingSlackHost = os.Getenv("SLACK_HOST")
 				os.Setenv("SLACK_HOST", server.URL)
 
@@ -901,7 +978,7 @@ var _ = Describe("Client", func() {
       }
    ]
 }
-`, 200)
+`, 200, nil)
 				existingSlackHost = os.Getenv("SLACK_HOST")
 				os.Setenv("SLACK_HOST", server.URL)
 

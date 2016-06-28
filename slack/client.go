@@ -14,6 +14,7 @@ import (
 	"time"
 
 	log "github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/botmetrics/go-botmetrics"
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/cenkalti/backoff"
 	"github.com/zerobotlabs/relax/Godeps/_workspace/src/github.com/streamrail/concurrent-map"
 	"github.com/zerobotlabs/relax/redisclient"
@@ -213,6 +214,9 @@ func (c *Client) LoginAndStart() error {
 
 	if err == nil {
 		err = c.Start()
+		if os.Getenv("BOTMETRICS_ENABLED") == "true" {
+			c.registerOnBotmetrics()
+		}
 	} else {
 		log.WithFields(log.Fields{
 			"team":  c.TeamId,
@@ -704,6 +708,33 @@ func (c *Client) callAPI(h string, method string, params url.Values, expectedSta
 				return "", fmt.Errorf("Expected Status Code: %d, Got: %d\n", expectedStatusCode, resp.StatusCode)
 			} else {
 				return string(contents), err
+			}
+		}
+	}
+}
+
+func (c *Client) registerOnBotmetrics() {
+	shouldRegister := true
+
+	key := fmt.Sprintf("botmetrics:%s", c.TeamId)
+	redisClient := redisclient.Client()
+	boolCmd := redisClient.HSetNX(os.Getenv("RELAX_MUTEX_KEY"), key, "ok")
+	if boolCmd != nil {
+		shouldRegister = boolCmd.Val()
+	}
+
+	if shouldRegister {
+		bm, err := botmetrics.NewBotmetricsClient()
+		if err == nil {
+			status := bm.RegisterBot(c.Token, -1)
+			if status {
+				log.WithFields(log.Fields{
+					"teamId": c.TeamId,
+				}).Info("registered on botmetrics")
+			} else {
+				log.WithFields(log.Fields{
+					"teamId": c.TeamId,
+				}).Error("error registering on botmetrics")
 			}
 		}
 	}

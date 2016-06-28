@@ -43,14 +43,14 @@ Binaries are available for both OS X and Linux. Untar and gunzip the
 downloaded file and move the `relax` binary to your `$PATH` to start
 using.
 
-## Don't Want to Host It Yourself?
+## Analytics for your Slackbot
 
-If you don't want to host Relax yourself, head on over to
-[https://getbotmetrics.com](https://getbotmetrics.com) which offers
-Relax hosting as well as analytics and metrics for your Slack bot. You
-will receive Relax events as JSON strings to a webhook you specify and
-also get analytics and metrics for your Slack bot.
-
+Relax now has optional [Botmetrics](https://botmetrics.com) analytics
+built in. If you want analytics for your Slack bot, set the
+`BOTMETRICS_ENABLED` environment variable to 'true', get an API key and
+a bot ID from botmetrics and set the `BOTMETRICS_API_KEY` and
+`BOTMETRICS_BOT_ID` environment variables set up and restart your Relax
+instances.
 
 ## In Production Use
 
