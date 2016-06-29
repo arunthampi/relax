@@ -45,7 +45,7 @@ using.
 
 ## Analytics for your Slackbot
 
-Relax now has optional [Botmetrics](https://botmetrics.com) analytics
+Relax now has optional [Botmetrics](https://getbotmetrics.com) analytics
 built in. If you want analytics for your Slack bot, set the
 `BOTMETRICS_ENABLED` environment variable to 'true', get an API key and
 a bot ID from botmetrics and set the `BOTMETRICS_API_KEY` and
