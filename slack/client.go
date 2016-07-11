@@ -608,6 +608,21 @@ func (c *Client) handleMessage(msg *Message) {
 		embeddedItem := msg.EmbeddedItem()
 		if embeddedItem != nil {
 			channelId := embeddedItem.ChannelId()
+
+			if channelId == "" {
+				messageBytes, err := msg.RawItem.MarshalJSON()
+				if err == nil {
+					log.WithFields(log.Fields{
+						"messageBytes": string(messageBytes),
+						"timestamp":    embeddedItem.Timestamp,
+					}).Info("itemmessagebytes when channel id is blank for reaction_added")
+				} else {
+					log.WithFields(log.Fields{
+						"error": err,
+					}).Info("error getting itemmarshalJSON when channel id is blank for reaction_added")
+				}
+			}
+
 			userId := msg.UserId()
 
 			msg.User = c.data.Users[userId]
