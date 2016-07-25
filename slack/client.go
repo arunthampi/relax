@@ -96,14 +96,26 @@ func (c *Client) IncrementHeartBeatsMissed() {
 // Login calls the "rtm.start" Slack API and gets a bunch of information such as
 // the websocket URL to connect to, users and channel information for the team and so on
 func (c *Client) Login() error {
-	contents, err := c.callSlack("rtm.start", map[string][]string{}, 200)
+	contents, resp, err := c.callSlack("rtm.start", map[string][]string{}, 200)
 	var metadata Metadata
 
 	if err != nil {
-		log.WithFields(log.Fields{
-			"team":  c.TeamId,
-			"error": err,
-		}).Error("calling rtm.start")
+		// Check for Slack Rate Limiting
+		for resp != nil && resp.StatusCode == 429 {
+			retryAfter := resp.Header.Get("Retry-After")
+			log.WithFields(log.Fields{
+				"team":        c.TeamId,
+				"retry-after": retryAfter,
+			}).Info("rate-limit hit, retrying")
+
+			retryAfterSeconds, err := strconv.Atoi(retryAfter)
+			if err != nil {
+				retryAfterSeconds = 5
+			}
+			// Sleep for the required amount of time and try again
+			time.Sleep(time.Duration(retryAfterSeconds) * time.Second)
+			contents, resp, err = c.callSlack("rtm.start", map[string][]string{}, 200)
+		}
 
 		return err
 	} else {
@@ -265,7 +277,7 @@ func (c *Client) Stop() error {
 }
 
 // callSlack is a utility method that makes HTTP API calls to Slack
-func (c *Client) callSlack(method string, params url.Values, expectedStatusCode int) (string, error) {
+func (c *Client) callSlack(method string, params url.Values, expectedStatusCode int) (string, *http.Response, error) {
 	params.Set("token", c.Token)
 	method = "/api/" + method
 
@@ -679,10 +691,10 @@ func (c *Client) handleMessage(msg *Message) {
 
 // callAPI is a utility method that is invoked by callSlack and is used to make
 // HTTP calls to REST API endpoints
-func (c *Client) callAPI(h string, method string, params url.Values, expectedStatusCode int) (string, error) {
+func (c *Client) callAPI(h string, method string, params url.Values, expectedStatusCode int) (string, *http.Response, error) {
 	u, err := url.ParseRequestURI(h)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	u.Path = method
@@ -696,18 +708,18 @@ func (c *Client) callAPI(h string, method string, params url.Values, expectedSta
 	resp, err := client.Do(r)
 
 	if err != nil {
-		return "", err
+		return "", resp, err
 	} else {
 		defer resp.Body.Close()
 		contents, err := ioutil.ReadAll(resp.Body)
 
 		if err != nil {
-			return "", err
+			return "", resp, err
 		} else {
 			if resp.StatusCode != expectedStatusCode {
-				return "", fmt.Errorf("Expected Status Code: %d, Got: %d\n", expectedStatusCode, resp.StatusCode)
+				return "", resp, fmt.Errorf("Expected Status Code: %d, Got: %d\n", expectedStatusCode, resp.StatusCode)
 			} else {
-				return string(contents), err
+				return string(contents), resp, err
 			}
 		}
 	}
