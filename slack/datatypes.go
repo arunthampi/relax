@@ -42,16 +42,60 @@ type Im struct {
 	CreatorId string `json:"user"`
 }
 
+type Field struct {
+	Title string `json:"title"`
+	Value string `json:"value"`
+	Short bool   `json:"short"`
+}
+
+type ConfirmAction struct {
+	Title       string `json:"title"`
+	Text        string `json:"text"`
+	OkText      string `json:"ok_text"`
+	DismissText string `json:"dismiss_text"`
+}
+
+type Action struct {
+	Name    string        `json:"name"`
+	Text    string        `json:"text"`
+	Type    string        `json:"type"`
+	Style   string        `json:"style"`
+	Value   string        `json:"value"`
+	Confirm ConfirmAction `json:"confirm"`
+}
+
+type Attachment struct {
+	Fallback       string   `json:"fallback"`
+	Color          string   `json:"color"`
+	Pretext        string   `json:"pretext"`
+	AuthorName     string   `json:"author_name"`
+	AuthorLink     string   `json:"author_link"`
+	AuthorIcon     string   `json:"author_icon"`
+	Title          string   `json:"title"`
+	TitleLink      string   `json:"title_link"`
+	Text           string   `json:"text"`
+	Fields         []Field  `json:"fields"`
+	ImageUrl       string   `json:"image_url"`
+	ThumbUrl       string   `json:"thumb_url"`
+	Footer         string   `json:"footer"`
+	FooterIcon     string   `json:"footer_icon"`
+	Ts             int64    `json:"ts"`
+	AttachmentType string   `json:"attachment_type"`
+	CallbackId     string   `json:"callback_id"`
+	Actions        []Action `json:"actions"`
+}
+
 // Message represents a message on Slack
 type Message struct {
-	Id               string `json:"id"`
-	Type             string `json:"type"`
-	Subtype          string `json:"subtype"`
-	Text             string `json:"text"`
-	Timestamp        string `json:"ts"`
-	DeletedTimestamp string `json:"deleted_ts"`
-	Reaction         string `json:"reaction"`
-	Hidden           bool   `json:"hidden"`
+	Id               string       `json:"id"`
+	Type             string       `json:"type"`
+	Subtype          string       `json:"subtype"`
+	Text             string       `json:"text"`
+	Timestamp        string       `json:"ts"`
+	DeletedTimestamp string       `json:"deleted_ts"`
+	Reaction         string       `json:"reaction"`
+	Hidden           bool         `json:"hidden"`
+	Attachments      []Attachment `json:"attachments"`
 	// For some events, such as message_changed, message_deleted, etc.
 	// the Timestamp field contains the timestamp of the original message
 	// so to make sure only one instance of the event is sent to REDIS_QUEUE_WEB
@@ -172,15 +216,16 @@ type User struct {
 // for e.g. when a message is received, an emoji reaction is added, etc.
 // an event is sent back to the user.
 type Event struct {
-	Type           string `json:"type"`
-	UserUid        string `json:"user_uid"`
-	ChannelUid     string `json:"channel_uid"`
-	TeamUid        string `json:"team_uid"`
-	Im             bool   `json:"im"`
-	Text           string `json:"text"`
-	RelaxBotUid    string `json:"relax_bot_uid"`
-	Timestamp      string `json:"timestamp"`
-	Provider       string `json:"provider"`
-	EventTimestamp string `json:"event_timestamp"`
-	Namespace      string `json:"namespace"`
+	Type           string       `json:"type"`
+	UserUid        string       `json:"user_uid"`
+	ChannelUid     string       `json:"channel_uid"`
+	TeamUid        string       `json:"team_uid"`
+	Im             bool         `json:"im"`
+	Text           string       `json:"text"`
+	RelaxBotUid    string       `json:"relax_bot_uid"`
+	Timestamp      string       `json:"timestamp"`
+	Provider       string       `json:"provider"`
+	EventTimestamp string       `json:"event_timestamp"`
+	Namespace      string       `json:"namespace"`
+	Attachments    []Attachment `json:"attachments"`
 }

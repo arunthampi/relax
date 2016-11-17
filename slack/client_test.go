@@ -1377,6 +1377,163 @@ var _ = Describe("Client", func() {
 				})
 			})
 
+			Context("message comes in from Slack (and has attachments)", func() {
+				BeforeEach(func() {
+					wsServer = newWSServer(`
+						{
+							"type": "message",
+							"channel": "C2147483705",
+							"user": "U2147483697",
+							"text": "Hey <@UBOTUID> Hello world",
+							"ts": "1355517523.000009",
+							"attachments": [
+								{
+										"fallback": "Required plain-text summary of the attachment.",
+										"color": "#36a64f",
+										"pretext": "Optional text that appears above the attachment block",
+										"author_name": "Bobby Tables",
+										"author_link": "http://flickr.com/bobby/",
+										"author_icon": "http://flickr.com/icons/bobby.jpg",
+										"title": "Slack API Documentation",
+										"title_link": "https://api.slack.com/",
+										"text": "Optional text that appears within the attachment",
+										"fields": [
+											{
+												"title": "Priority",
+												"value": "High",
+												"short": false
+											}
+										],
+										"image_url": "http://my-website.com/path/to/image.jpg",
+										"thumb_url": "http://example.com/path/to/thumb.png",
+										"footer": "Slack API",
+										"footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",
+										"ts": 123456789,
+										"attachment_type": "default",
+										"actions": [
+											{
+												"name": "chess",
+												"text": "Chess",
+												"type": "button",
+												"value": "chess"
+											},
+											{
+												"name": "maze",
+												"text": "Falken's Maze",
+												"type": "button",
+												"value": "maze"
+											},
+											{
+												"name": "war",
+												"text": "Thermonuclear War",
+												"style": "danger",
+												"type": "button",
+												"value": "war",
+												"confirm": {
+													"title": "Are you sure?",
+													"text": "Wouldn't you prefer a good game of chess?",
+													"ok_text": "Yes",
+													"dismiss_text": "No"
+												}
+											}
+										]
+								}
+							]
+						}
+					`)
+
+					client.data = &Metadata{
+						Ok:       true,
+						Url:      makeWsProto(wsServer.URL),
+						Users:    map[string]User{},
+						Channels: map[string]Channel{},
+						Self:     User{Id: "UBOTUID"},
+					}
+					client.data.Channels["C2147483705"] = Channel{Id: "C2147483705", Im: false}
+					client.data.Users["U2147483697"] = User{Id: "U2147483697"}
+					client.TeamId = "TDEADBEEF"
+
+					client.Start()
+				})
+
+				AfterEach(func() {
+					wsServer.Close()
+				})
+
+				It("should send an event to Redis with the attachments", func() {
+					var event Event
+
+					resultevent := redisClient.BLPop(1*time.Second, os.Getenv("RELAX_EVENTS_QUEUE"))
+					result := resultevent.Val()
+
+					Expect(len(result)).To(Equal(2))
+					err := json.Unmarshal([]byte(result[1]), &event)
+
+					Expect(err).To(BeNil())
+					Expect(event.Type).To(Equal("message_new"))
+					Expect(event.ChannelUid).To(Equal("C2147483705"))
+					Expect(event.UserUid).To(Equal("U2147483697"))
+					Expect(event.Text).To(Equal("Hey <@UBOTUID> Hello world"))
+					Expect(event.Timestamp).To(Equal("1355517523.000009"))
+					Expect(event.Im).To(BeFalse())
+					Expect(event.RelaxBotUid).To(Equal("UBOTUID"))
+					Expect(event.TeamUid).To(Equal("TDEADBEEF"))
+					Expect(event.Provider).To(Equal("slack"))
+					Expect(event.EventTimestamp).To(Equal("1355517523.000009"))
+					Expect(len(event.Attachments)).To(Equal(1))
+
+					attachment := event.Attachments[0]
+
+					Expect(attachment.Fallback).To(Equal("Required plain-text summary of the attachment."))
+					Expect(attachment.Color).To(Equal("#36a64f"))
+					Expect(attachment.Pretext).To(Equal("Optional text that appears above the attachment block"))
+					Expect(attachment.AuthorName).To(Equal("Bobby Tables"))
+					Expect(attachment.AuthorLink).To(Equal("http://flickr.com/bobby/"))
+					Expect(attachment.AuthorIcon).To(Equal("http://flickr.com/icons/bobby.jpg"))
+					Expect(attachment.Text).To(Equal("Optional text that appears within the attachment"))
+					Expect(attachment.ImageUrl).To(Equal("http://my-website.com/path/to/image.jpg"))
+					Expect(attachment.ThumbUrl).To(Equal("http://example.com/path/to/thumb.png"))
+					Expect(attachment.Footer).To(Equal("Slack API"))
+					Expect(attachment.FooterIcon).To(Equal("https://platform.slack-edge.com/img/default_application_icon.png"))
+					Expect(attachment.Ts).To(Equal(int64(123456789)))
+					Expect(attachment.AttachmentType).To(Equal("default"))
+					Expect(len(attachment.Fields)).To(Equal(1))
+
+					field := attachment.Fields[0]
+					Expect(field.Title).To(Equal("Priority"))
+					Expect(field.Value).To(Equal("High"))
+					Expect(field.Short).To(Equal(false))
+
+					Expect(len(attachment.Actions)).To(Equal(3))
+					action1 := attachment.Actions[0]
+					Expect(action1.Name).To(Equal("chess"))
+					Expect(action1.Text).To(Equal("Chess"))
+					Expect(action1.Type).To(Equal("button"))
+					Expect(action1.Value).To(Equal("chess"))
+
+					action2 := attachment.Actions[1]
+					Expect(action2.Name).To(Equal("maze"))
+					Expect(action2.Text).To(Equal("Falken's Maze"))
+					Expect(action2.Type).To(Equal("button"))
+					Expect(action2.Value).To(Equal("maze"))
+
+					action3 := attachment.Actions[2]
+					Expect(action3.Name).To(Equal("war"))
+					Expect(action3.Text).To(Equal("Thermonuclear War"))
+					Expect(action3.Style).To(Equal("danger"))
+					Expect(action3.Type).To(Equal("button"))
+					Expect(action3.Value).To(Equal("war"))
+					Expect(action3.Confirm.Title).To(Equal("Are you sure?"))
+					Expect(action3.Confirm.Text).To(Equal("Wouldn't you prefer a good game of chess?"))
+					Expect(action3.Confirm.OkText).To(Equal("Yes"))
+					Expect(action3.Confirm.DismissText).To(Equal("No"))
+
+					val := redisClient.HGet(os.Getenv("RELAX_MUTEX_KEY"), fmt.Sprintf("bot_message:%s:%s", event.ChannelUid, event.EventTimestamp))
+					Expect(val).ToNot(BeNil())
+					Expect(val.Val()).To(Equal("ok"))
+				})
+			})
+
 			Context("message comes in from Slack and is from the bot itself", func() {
 				BeforeEach(func() {
 					wsServer = newWSServer(`
