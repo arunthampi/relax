@@ -308,6 +308,7 @@ func (c *Client) sendEvent(responseType string, msg *Message, text string, times
 		RelaxBotUid:    c.data.Self.Id,
 		Timestamp:      timestamp,
 		EventTimestamp: eventTimestamp,
+		Attachments:    msg.Attachments,
 		Namespace:      c.Namespace,
 		Provider:       "slack",
 	}
