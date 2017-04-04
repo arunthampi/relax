@@ -126,7 +126,7 @@ This is a string value contains the type of event can hold the following values:
 Type               | What it does
 -------------------|---------------
 `disable_bot`      | This event is sent when authentication with a team fails (either due to a wrong token or an expired token).  `message_new`    | This is event is sent When a new message is received by Relax. *Note*: Only events for messages intended to Relax (so an @-mention to the bot or a direct message) are sent.
-`message_changed`  | This event is sent when a message has been edited.
+`message_edited`   | This event is sent when a message has been edited.
 `message_deleted`  | This event is sent when a message has been deleted.
 `reaction_added`   | This event is sent when a reaction has been added to a message.
 `reaction_removed` | This event is sent when a reaction has been removed from a message.
@@ -156,7 +156,7 @@ event. This can mean different things in different contexts:
 Type               | What "text" field means
 -------------------|---------------
 `message_new`      | The message text
-`message_changed`  | The *new* text of the message
+`message_edited`   | The *new* text of the message
 `message_deleted`  | The original message text
 `reaction_added`   | Reaction added to a message. This contains the text representation of a reaction, for e.g. `:simple_smiley:`
 `reaction_removed` | Reaction removed from a message. This contain the text representation of a reaction, for e.g. `:simple_smiley:`
@@ -179,7 +179,7 @@ Type               | What "timestamp" field means
 -------------------|---------------
 `disable_bot`      | Empty string
 `message_new`      | Timestamp at which the message was created. In this case, `timestamp` and `event_timestamp` will be the same
-`message_changed`  | Timestamp of the message that has been changed. Upon receiving a "message_changed" event, you can use "channel_uid" and "timestamp" to identify the message who's text has been changed and modify its text accordingly
+`message_edited`   | Timestamp of the message that has been changed. Upon receiving a "message_changed" event, you can use "channel_uid" and "timestamp" to identify the message who's text has been changed and modify its text accordingly
 `message_deleted`  | Timestamp of the message that has been deleted. Upon receiving a "message_changed" event, you can use "channel_uid" and "timestamp" to identify the message that has been deleted and delete that message accordingly
 `reaction_added`   | Timestamp of the message for which a reaction has been added. Upon receiving a "reaction_added" event, you can use "channel_uid" and "timestamp" to identify the message for which a reaction has been added and change the metadata for that message accordingly
 `reaction_removed` | Timestamp of the message for which a reaction has been removed. Upon receiving a "reaction_removed" event, you can use "channel_uid" and "timestamp" to identify the message for which a reaction has been removed and change the metadata for that message accordingly
