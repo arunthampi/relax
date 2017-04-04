@@ -1,5 +1,7 @@
 ## Relax
 
+[![Join the chat at https://gitter.im/zerobotlabs/relax](https://badges.gitter.im/zerobotlabs/relax.svg)](https://gitter.im/zerobotlabs/relax?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Relax is a Message Broker for Slack Bots. What does that mean?
 If you are running a "bot-as-a-service" for Slack, you have to maintain
 hundreds (if not thousands) of websocket connections and handle the
